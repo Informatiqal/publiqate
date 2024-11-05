@@ -1,0 +1,75 @@
+{
+  "name": "notifiqation",
+  "version": "0.0.0",
+  "description": "",
+  "author": {
+    "email": "info@informatiqal.com",
+    "name": "Informatiqal @informatiqal",
+    "url": "https://informatiqal.com"
+  },
+  "license": "MIT",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node dist/app.js",
+    "prestart": "npm run build-tsc",
+    "build-tsc": "tsc",
+    "build": "rollup -c",
+    "watch": "rollup -cw",
+    "docs": "npx typedoc src/index.doc.ts --name \"NotifiQation\" --excludePrivate --hideGenerator --darkHighlightTheme dark-plus",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "qlik",
+    "sense",
+    "qlik-sense",
+    "qlik sense",
+    "repo api",
+    "repository",
+    "api",
+    "notification"
+  ],
+  "files": [
+    "dist",
+    "*.json",
+    "*.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "!tsconfig.json",
+    "!tsconfig.test.json",
+    "!renovate.json",
+    "!Notes.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/informatiqal/notifiqation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/informatiqal/notifiqation/issues"
+  },
+  "homepage": "https://informatiqal.com/notifiqation/",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.8.4",
+    "body-parser": "^1.20.3",
+    "express": "^4.21.1",
+    "js-yaml": "^4.1.0",
+    "node-fetch": "^3.3.2",
+    "qlik-repo-api": "^0.15.1",
+    "rollup": "^4.24.3",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-delete": "^2.1.0",
+    "tslib": "^2.8.0",
+    "typescript": "^5.6.3",
+    "uuid": "^11.0.2",
+    "vitest": "^0.33.0",
+    "winston": "^3.16.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  }
+}
