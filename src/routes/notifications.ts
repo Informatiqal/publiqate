@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import { Config, Plugin, Notification, NotificationData } from "../interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
 
-import { logger, pluginLogger } from "../lib/logger";
+import { flushLogs, logger, pluginLogger } from "../lib/logger";
 import * as httpPlugin from "../plugins/http";
 import * as echoPlugin from "../plugins/echo";
 import winston from "winston";
@@ -10,6 +10,9 @@ import winston from "winston";
 let configNotifications = {} as { [k: string]: Notification };
 let repoClient = {} as QlikRepoApi.client;
 let pluginsConfig = {} as Config["plugins"];
+let plugins: {
+  [k: string]: (c: any, d: NotificationData, logger: winston.Logger) => void;
+} = {};
 
 const notificationsRouter = express.Router();
 
@@ -49,30 +52,34 @@ notificationsRouter.post(
       return;
     }
 
-    const objectType = `${req.body[0].objectType
-      .split("")[0]
-      .toLowerCase()}${req.body[0].objectType.substring(
-      1,
-      req.body[0].objectType.length
-    )}s`;
+    try {
+      const objectType = `${req.body[0].objectType
+        .split("")[0]
+        .toLowerCase()}${req.body[0].objectType.substring(
+        1,
+        req.body[0].objectType.length
+      )}s`;
 
-    const entities = await Promise.all(
-      req.body.map((entity) =>
-        repoClient[`${objectType}`].get({
-          id: entity.objectID,
-        })
-      )
-    ).then((ent) => ent.map((e) => e.details));
+      const entities = await Promise.all(
+        req.body.map((entity) =>
+          repoClient[`${objectType}`].get({
+            id: entity.objectID,
+          })
+        )
+      ).then((ent) => ent.map((e) => e.details));
 
-    notificationData.entity = entities;
+      notificationData.entity = entities;
 
-    relay(notificationData);
+      relay(notificationData);
+    } catch (e) {
+      logger.error(
+        `Error while retrieving entity information. Below is the available notification data and the actual error message`
+      );
+      logger.error(`${JSON.stringify(notificationData)}`);
+      logger.error(e.message);
+    }
   }
 );
-
-let plugins: {
-  [k: string]: (c: any, d: NotificationData, logger: winston.Logger) => void;
-} = {};
 
 export async function initNotifications(
   notifications: {
@@ -99,18 +106,19 @@ async function loadPlugins() {
     await Promise.all(
       pluginsConfig.map(async (plugin) => {
         try {
-          const p: Plugin = await import(`file:///${plugin.path}`).catch(
-            (e) => {
-              let b = 1;
-            }
-          );
+          const p: Plugin = await import(`file:///${plugin.path}`);
 
           plugins[plugin.name] = p.implementation;
           logger.info(
             `External plugin "${plugin.name}" loaded from "${plugin.path}"`
           );
         } catch (e) {
-          let b = 1;
+          logger.error(`Error while loading plugin from ${plugin.path}`);
+          logger.error(e);
+          flushLogs();
+          await new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+            process.exit(1);
+          });
         }
       })
     );

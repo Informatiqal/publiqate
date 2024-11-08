@@ -36,4 +36,21 @@ const pluginLogger = winston.createLogger({
   },
 });
 
+export async function flushLogs() {
+  let promises = [];
+
+  for (let [, logger] of winston.loggers.loggers) {
+    promises.push(
+      new Promise((resolve) => {
+        logger.on("finish", resolve);
+        logger.end();
+      })
+    );
+  }
+
+  Promise.all(promises).then((_) => {
+    // process.exit();
+  });
+}
+
 export { logger, pluginLogger };

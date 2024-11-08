@@ -1,6 +1,6 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import https from "https";
-import { v4 as uuidv4 } from "uuid";
+// import { v4 as uuidv4 } from "uuid";
 import bodyParser from "body-parser";
 import { readFileSync } from "fs";
 import yaml from "js-yaml";
@@ -11,24 +11,6 @@ import { generalRouter } from "./routes/general";
 import { notificationsRouter, initNotifications } from "./routes/notifications";
 
 import { Config, Notification } from "./interfaces";
-
-var exceptionOccurred = false;
-
-// process.on("uncaughtException", function (err) {
-//   console.log("Caught exception: " + err);
-//   exceptionOccurred = true;
-//   process.exit();
-// });
-
-// process.on("exit", function (code) {
-//   if (exceptionOccurred) console.log("Exception occurred");
-//   else console.log("Kill signal received");
-// });
-
-// process.on("SIGINT", function () {
-//   console.log("SIGINT");
-//   process.exit();
-// });
 
 let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
@@ -113,8 +95,10 @@ async function run() {
     res.status(404).send();
   });
 
-  app.listen(config.general.port, () => {
-    logger.info(`Web server is running on port ${config.general.port}`);
+  const port = config.general?.port || 8123;
+
+  app.listen(port, () => {
+    logger.info(`Web server is running on port ${port}`);
   });
 }
 
