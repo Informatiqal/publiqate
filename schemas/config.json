@@ -13,6 +13,17 @@
                 },
                 "uri": {
                     "type": "string"
+                },
+                "certs": {
+                    "type": "string"
+                },
+                "logLevel": {
+                    "type": "string",
+                    "enum": [
+                        "debug",
+                        "info",
+                        "error"
+                    ]
                 }
             },
             "required": [
@@ -59,6 +70,16 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "logLevel": {
+                        "type": "string",
+                        "enum": [
+                            "crit",
+                            "error",
+                            "warning",
+                            "info",
+                            "debug"
+                        ]
                     }
                 },
                 "required": [
@@ -114,6 +135,12 @@
                             "delete"
                         ]
                     },
+                    "filter": {
+                        "type": "string"
+                    },
+                    "condition": {
+                        "type": "string"
+                    },
                     "propertyName": {
                         "type": "string"
                     },
@@ -144,7 +171,8 @@
                     "id",
                     "changeType",
                     "callback"
-                ]
+                ],
+                "additionalProperties": false
             }
         }
     },

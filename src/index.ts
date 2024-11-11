@@ -1,24 +1,63 @@
+import { parseArgs } from "node:util";
+import fs from "fs";
+
 import express from "express";
+import cors from "cors";
 import https from "https";
-// import { v4 as uuidv4 } from "uuid";
-import bodyParser from "body-parser";
+import { v4 as uuidv4 } from "uuid";
 import { readFileSync } from "fs";
 import yaml from "js-yaml";
 import { QlikRepoApi } from "qlik-repo-api";
 
-import { logger } from "./lib/logger";
+import { logger, flushLogs, setDefaultLevel } from "./lib/logger";
 import { generalRouter } from "./routes/general";
 import { notificationsRouter, initNotifications } from "./routes/notifications";
 
 import { Config, Notification } from "./interfaces";
+
+process.on("uncaughtException", async (e) => {
+  logger.crit(e.message);
+  flushLogs();
+  await new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    process.exit(1);
+  });
+});
+
+process.on("unhandledRejection", async (reason) => {
+  logger.crit(reason);
+  flushLogs();
+  await new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    process.exit(1);
+  });
+});
+
+const args = process.argv;
+const options = {
+  uuid: {
+    type: "boolean",
+  },
+};
+
+const { values, positionals } = parseArgs({
+  args,
+  //@ts-ignore
+  options,
+  allowPositionals: true,
+});
+
+if (values["uuid"]) {
+  const id = uuidv4();
+  console.log(id);
+  process.exit(0);
+}
 
 let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
 let repoClient = {} as QlikRepoApi.client;
 
 const app = express();
-app.use(bodyParser.urlencoded());
-app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 async function prepareConfig() {
   config = yaml.load(readFileSync(".\\config.yaml")) as Config;
@@ -47,7 +86,7 @@ async function prepareRepoClient() {
   });
 }
 
-async function createQlikNotifications() {
+async function createQlikNotifications(port: number) {
   const changeTypes = {
     undefined: 0,
     add: 1,
@@ -55,12 +94,17 @@ async function createQlikNotifications() {
     delete: 3,
   };
 
+  const callbackURLProtocol = config.general.certs ? "https" : "http";
+  const callbackBaseURL = `${callbackURLProtocol}://${config.general.uri}:${port}`;
+
   await Promise.all(
     Object.entries(notifications).map(([id, notification]) => {
       const notificationData = {
         name: notification.type,
-        uri: `${config.general.uri}:${config.general.port}/notifications/callback/${id}`,
+        uri: `${callbackBaseURL}/notifications/callback/${id}`,
       };
+
+      //TODO: validations should be performed here
 
       notificationData["changeType"] =
         changeTypes[notification.changeType.toLowerCase()];
@@ -77,29 +121,72 @@ async function createQlikNotifications() {
         logger.info(
           `Notification "${notification.name}" registered. ID: ${id}`
         );
+
+        logger.debug(`Create notification response from Qlik: ${e}`);
       });
     })
   );
 }
 
 async function run() {
+  logger.info("Starting...");
+
   await prepareConfig();
+
+  setDefaultLevel(config.general.logLevel);
+
+  const port = config.general?.port || 8443;
+
   await prepareRepoClient();
-  await initNotifications(notifications, repoClient, config.plugins);
+  await initNotifications(
+    notifications,
+    repoClient,
+    config.plugins,
+    config.qlik.host,
+    config.general.logLevel
+  );
 
-  await createQlikNotifications();
+  await createQlikNotifications(port);
 
+  app.options(
+    "/notifications/callback"
+    // cors({
+    //   origin: config.qlik.host,
+    // })
+  );
   app.use("/", generalRouter);
   app.use("/notifications", notificationsRouter);
   app.all("*", (req, res) => {
     res.status(404).send();
   });
 
-  const port = config.general?.port || 8123;
+  if (config.general.certs) {
+    const privateKey = fs.readFileSync(
+      `${config.general.certs}/key.pem`,
+      "utf8"
+    );
+    const certificate = fs.readFileSync(
+      `${config.general.certs}/cert.pem`,
+      "utf8"
+    );
+    const httpsServer = https.createServer(
+      {
+        key: privateKey,
+        cert: certificate,
+      },
+      app
+    );
 
-  app.listen(port, () => {
-    logger.info(`Web server is running on port ${port}`);
-  });
+    logger.debug(`Certificates loaded from ${config.general.certs}`);
+
+    httpsServer.listen(port, () => {
+      logger.info(`HTTPS web server is running on port ${port}`);
+    });
+  } else {
+    app.listen(port, () => {
+      logger.info(`Web server is running on port ${port}`);
+    });
+  }
 }
 
 run();

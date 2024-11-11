@@ -11,6 +11,5 @@ export async function implementation(
   n: NotificationData,
   logger: winston.Logger
 ) {
-  console.log(JSON.stringify(n));
   logger.info(JSON.stringify(n));
 }

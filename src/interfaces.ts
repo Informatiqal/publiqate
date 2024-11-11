@@ -4,10 +4,14 @@ import {
 } from "qlik-repo-api/dist/types/interfaces";
 import winston from "winston";
 
+export type LogLevels = "crit" | "error" | "warning" | "info" | "debug";
+
 export interface GeneralConfig {
   port: number;
   uri: string;
   sourceWhitelist: string;
+  certs: string;
+  logLevel: LogLevels;
 }
 
 export interface Notification {
@@ -19,7 +23,10 @@ export interface Notification {
   changeType: NotificationChangeType;
   propertyName?: string;
   getEntityDetails?: boolean;
-  callback: [];
+  callback: {
+    type: string;
+    details: any;
+  }[];
 }
 
 export interface QlikComm {
@@ -37,6 +44,7 @@ export interface Config {
   plugins: {
     name: string;
     path: string;
+    logLevel?: LogLevels;
   }[];
 }
 

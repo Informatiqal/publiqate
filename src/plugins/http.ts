@@ -26,9 +26,16 @@ export async function implementation(
       fetch(c.details.url, {
         method: c.details.method.toLowerCase() == "get" ? "get" : "delete",
         headers,
-      });
+      })
+        .then((r) => ({
+          status: r.statusText,
+          text: r.text(),
+        }))
+        .then((r) => {
+          logger.debug(JSON.stringify(r));
+        });
     } catch (e) {
-      //
+      logger.error(e.message);
     }
   }
 
@@ -41,9 +48,16 @@ export async function implementation(
         method: c.details.method,
         body: JSON.stringify(n),
         headers,
-      });
+      })
+        .then((r) => ({
+          status: r.statusText,
+          text: r.text(),
+        }))
+        .then((r) => {
+          logger.debug(JSON.stringify(r));
+        });
     } catch (e) {
-      //
+      logger.error(e.message);
     }
   }
 }
