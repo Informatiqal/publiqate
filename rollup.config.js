@@ -27,6 +27,7 @@ export default {
     copy({
       targets: [
         { src: 'config-example.yaml', dest: 'dist', rename: "config.yaml" },
+        { src: 'schemas', dest: 'dist' }
       ]
     })
   ],

@@ -1,6 +1,8 @@
 import { parseArgs } from "node:util";
 import fs from "fs";
 
+import Ajv, { ValidateFunction } from "ajv";
+import ajvErrors from "ajv-errors";
 import express from "express";
 import cors from "cors";
 import https from "https";
@@ -15,18 +17,18 @@ import { notificationsRouter, initNotifications } from "./routes/notifications";
 
 import { Config, Notification } from "./interfaces";
 
-process.on("uncaughtException", async (e) => {
+process.on("uncaughtException", (e) => {
   logger.crit(e.message);
   flushLogs();
-  await new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+  new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
     process.exit(1);
   });
 });
 
-process.on("unhandledRejection", async (reason) => {
+process.on("unhandledRejection", (reason) => {
   logger.crit(reason);
   flushLogs();
-  await new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+  new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
     process.exit(1);
   });
 });
@@ -51,6 +53,10 @@ if (values["uuid"]) {
   process.exit(0);
 }
 
+const configSchema = JSON.parse(
+  fs.readFileSync("./schemas/config.json").toString()
+);
+
 let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
 let repoClient = {} as QlikRepoApi.client;
@@ -61,6 +67,24 @@ app.use(express.json());
 
 async function prepareConfig() {
   config = yaml.load(readFileSync(".\\config.yaml")) as Config;
+
+  const ajv = new Ajv({
+    allErrors: true,
+    strict: true,
+    strictRequired: true,
+    allowUnionTypes: true,
+  });
+
+  ajvErrors(ajv);
+
+  const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
+
+  const valid = validate(config);
+
+  if (!valid) {
+    const errors = validate.errors.map((e) => e.message).join(", ");
+    throw new Error(errors);
+  }
 
   config.notifications.map((notification) => {
     notifications[notification.id] = notification;

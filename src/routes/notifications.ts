@@ -186,11 +186,6 @@ async function relay(b: NotificationData) {
   await Promise.all(
     b.config.callback.map((c) => {
       try {
-        // const pluginConfig = pluginsConfig.filter((p) => p.name == c.type)[0];
-        // const localLogger = createPluginLogger(
-        //   c.type,
-        //   pluginConfig?.logLevel || logLevel
-        // );
         plugins[c.type](c, b, pluginLoggers[c.type]);
       } catch (e) {
         logger.error(e.message);

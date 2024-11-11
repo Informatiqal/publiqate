@@ -22,6 +22,7 @@ function setDefaultLevel(level: string) {
 
 const logger = winston.createLogger({
   transports: [new winston.transports.Console(), fileTransport],
+  levels: winston.config.syslog.levels,
   level: defaultLevel,
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -54,6 +55,7 @@ export async function flushLogs() {
 function createPluginLogger(pluginName: string, logLevel: string) {
   return winston.createLogger({
     transports: [new winston.transports.Console(), fileTransport],
+    levels: winston.config.syslog.levels,
     level: logLevel,
     format: winston.format.combine(
       winston.format.timestamp(),
