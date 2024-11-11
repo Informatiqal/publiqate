@@ -32,7 +32,7 @@ export async function implementation(
           text: r.text(),
         }))
         .then((r) => {
-          logger.debug(JSON.stringify(r));
+          logger.debug(JSON.stringify({ response: r, ...n }));
         });
     } catch (e) {
       logger.error(e.message);
@@ -54,7 +54,7 @@ export async function implementation(
           text: r.text(),
         }))
         .then((r) => {
-          logger.debug(JSON.stringify(r));
+          logger.debug(JSON.stringify({ response: r, ...n }));
         });
     } catch (e) {
       logger.error(e.message);

@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://github.com/Informatiqal/notifiqation/blob/main/schemas/config.json?raw=true
+
+general:
+  port: 8000
+  uri: "192.168.137.1"
+  # certs: C:\path\to\folder # valid pem certificates only!
+  # logLevel: debug # if need more details. Default is "info"
+
+qlik:
+  cert: C:\path\to\qlik\cert\client.pem
+  key: C:\path\to\qlik\cer\client_key.pem
+  host: central-node-machine-name
+  userName: rootAdminUser
+  userDir: SOME_DIRECTORY
+
+# section to load custom plugins
+# plugins:
+#   - name: Custom plugin
+#     path: "C:/path/to/built/custom/esm/plugin/index.js"
+
+notifications:
+  - name: All failed tasks
+    type: ExecutionResult
+    id: 999999999-8888-7777-6666-55555555555
+    filter: status eq 8 # 8 -> FinishedFail
+    changeType: update # add, update or delete
+    callback:
+      # http plugin is built-in
+      - type: http
+        details:
+          method: post # get, post, put or delete
+          url: http://localhost:3000 # where to send the event
+    getEntityDetails: true # if "true" include the entity details within the event
+
+  - name: Get specific stream updates
+    type: Stream
+    id: 111111111-2222-3333-4444-55555555555
+    filter: name eq 'Some stream name'
+    changeType: update
+    callback:
+      # echo plugin is built-in. It just output to the log file
+      - type: echo
+    # getEntityDetails: true # if not provided it will default to "true"

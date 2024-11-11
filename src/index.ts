@@ -53,10 +53,6 @@ if (values["uuid"]) {
   process.exit(0);
 }
 
-const configSchema = JSON.parse(
-  fs.readFileSync("./schemas/config.json").toString()
-);
-
 let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
 let repoClient = {} as QlikRepoApi.client;
@@ -65,7 +61,7 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-async function prepareConfig() {
+async function prepareAndValidateConfig() {
   config = yaml.load(readFileSync(".\\config.yaml")) as Config;
 
   const ajv = new Ajv({
@@ -76,6 +72,10 @@ async function prepareConfig() {
   });
 
   ajvErrors(ajv);
+
+  const configSchema = JSON.parse(
+    fs.readFileSync("./schemas/config.json").toString()
+  );
 
   const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
 
@@ -155,11 +155,18 @@ async function createQlikNotifications(port: number) {
 async function run() {
   logger.info("Starting...");
 
-  await prepareConfig();
+  await prepareAndValidateConfig();
 
   setDefaultLevel(config.general.logLevel);
 
-  const port = config.general?.port || 8443;
+  // if port is defined in the config - use it
+  // if not then if certs are defined the default port is 8443
+  // if not then defaults to 8080
+  const port = config.general?.port
+    ? config.general?.port
+    : config.general.certs
+    ? 8443
+    : 8080;
 
   await prepareRepoClient();
   await initNotifications(
