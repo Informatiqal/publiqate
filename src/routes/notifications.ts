@@ -15,7 +15,11 @@ let pluginLoggers: {
   [k: string]: winston.Logger;
 } = {};
 let plugins: {
-  [k: string]: (c: any, d: NotificationData, logger: winston.Logger) => void;
+  [k: string]: (
+    c: any,
+    d: NotificationData,
+    logger: winston.Logger
+  ) => Promise<any>;
 } = {};
 let logLevel = "info";
 
@@ -183,19 +187,11 @@ async function loadPlugins() {
 }
 
 async function relay(b: NotificationData) {
-  try {
-    await Promise.all(
-      b.config.callback.map((c) => {
-        try {
-          plugins[c.type](c, b, pluginLoggers[c.type]);
-        } catch (e) {
-          logger.error(e.message);
-        }
-      })
-    );
-  } catch (e) {
+  await Promise.all(
+    b.config.callback.map((c) => plugins[c.type](c, b, pluginLoggers[c.type]))
+  ).catch((e) => {
     logger.error(e.message);
-  }
+  });
 }
 
 export { notificationsRouter };

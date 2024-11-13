@@ -61,7 +61,11 @@ export interface Plugin {
     author?: string;
     description?: string;
   };
-  implementation: (c: any, d: NotificationData, logger: winston.Logger) => void;
+  implementation: (
+    c: any,
+    d: NotificationData,
+    logger: winston.Logger
+  ) => Promise<any>;
 }
 
 export interface Callback {

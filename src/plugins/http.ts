@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 
 import { Callback, NotificationData } from "../interfaces";
-import winston from "winston";
+import { Logger } from "winston";
 
 export const meta = {
   author: "Informatiqal",
@@ -11,7 +11,7 @@ export const meta = {
 export async function implementation(
   c: Callback,
   n: NotificationData,
-  logger: winston.Logger
+  logger: Logger
 ) {
   let headers = { "Content-Type": "application/json" };
 
@@ -22,42 +22,59 @@ export async function implementation(
     c.details.method.toLowerCase() == "get" ||
     c.details.method.toLowerCase() == "delete"
   ) {
-    try {
-      fetch(c.details.url, {
-        method: c.details.method.toLowerCase() == "get" ? "get" : "delete",
-        headers,
+    return fetch(c.details.url, {
+      method: c.details.method.toLowerCase() == "get" ? "get" : "delete",
+      headers,
+    })
+      .then((r) => ({
+        status: r.statusText,
+        text: r.text(),
+      }))
+      .then((r) => {
+        logger.debug(
+          JSON.stringify({
+            response: r,
+            ...{
+              data: n.data,
+              entities: n.entity,
+            },
+          })
+        );
       })
-        .then((r) => ({
-          status: r.statusText,
-          text: r.text(),
-        }))
-        .then((r) => {
-          logger.debug(JSON.stringify({ response: r, ...n }));
-        });
-    } catch (e) {
-      logger.error(e.message);
-    }
+      .catch((e) => {
+        logger.error(e);
+      });
   }
 
   if (
     c.details.method.toLowerCase() == "post" ||
     c.details.method.toLowerCase() == "put"
   ) {
-    try {
-      fetch(c.details.url, {
-        method: c.details.method,
-        body: JSON.stringify(n),
-        headers,
+    return fetch(c.details.url, {
+      method: c.details.method,
+      body: JSON.stringify({
+        data: n.data,
+        entities: n.entity,
+      }),
+      headers,
+    })
+      .then((r) => ({
+        status: r.statusText,
+        text: r.text(),
+      }))
+      .then((r) => {
+        logger.debug(
+          JSON.stringify({
+            response: r,
+            ...{
+              data: n.data,
+              entities: n.entity,
+            },
+          })
+        );
       })
-        .then((r) => ({
-          status: r.statusText,
-          text: r.text(),
-        }))
-        .then((r) => {
-          logger.debug(JSON.stringify({ response: r, ...n }));
-        });
-    } catch (e) {
-      logger.error(e.message);
-    }
+      .catch((e) => {
+        logger.error(e);
+      });
   }
 }
