@@ -16,6 +16,7 @@ function setDefaultLevel(level: string) {
   if (level) {
     defaultLevel = level;
     logger.level = level;
+    adminLogger.level = level;
     fileTransport.level = level;
   }
 }
@@ -32,6 +33,21 @@ const logger = winston.createLogger({
   ),
   defaultMeta: {
     service: "CORE",
+  },
+});
+
+const adminLogger = winston.createLogger({
+  transports: [new winston.transports.Console(), fileTransport],
+  levels: winston.config.syslog.levels,
+  level: defaultLevel,
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message, service }) => {
+      return `${timestamp}\t${level.toUpperCase()}\t${service}\t${message}`;
+    })
+  ),
+  defaultMeta: {
+    service: "ADMIN",
   },
 });
 
@@ -69,4 +85,4 @@ function createPluginLogger(pluginName: string, logLevel: string) {
   });
 }
 
-export { logger, createPluginLogger, setDefaultLevel };
+export { logger, createPluginLogger, setDefaultLevel, adminLogger };

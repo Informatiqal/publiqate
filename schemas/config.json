@@ -24,6 +24,10 @@
                         "info",
                         "error"
                     ]
+                },
+                "vars": {
+                    "type": "string",
+                    "description": "Location to file where secrets are stored"
                 }
             },
             "required": [
@@ -156,7 +160,8 @@
                                     "type": "string"
                                 },
                                 "details": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "additionalProperties": true
                                 }
                             },
                             "required": [

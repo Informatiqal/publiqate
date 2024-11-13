@@ -1,21 +1,25 @@
 import { parseArgs } from "node:util";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-import Ajv, { ValidateFunction } from "ajv";
-import ajvErrors from "ajv-errors";
+const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
+const __dirname = path.dirname(__filename); // get the name of the directory
+
 import express from "express";
 import cors from "cors";
 import https from "https";
 import { v4 as uuidv4 } from "uuid";
 import { readFileSync } from "fs";
-import yaml from "js-yaml";
 import { QlikRepoApi } from "qlik-repo-api";
 
-import { logger, flushLogs, setDefaultLevel } from "./lib/logger";
+import { logger, flushLogs, setDefaultLevel, adminLogger } from "./lib/logger";
 import { generalRouter } from "./routes/general";
 import { notificationsRouter, initNotifications } from "./routes/notifications";
 
 import { Config, Notification } from "./interfaces";
+import { adminRouter, adminEmitter } from "./routes/admin";
+import { prepareAndValidateConfig } from "./lib/configValidate";
 
 process.on("uncaughtException", (e) => {
   logger.crit(e.message);
@@ -53,43 +57,106 @@ if (values["uuid"]) {
   process.exit(0);
 }
 
+if (values["verify"]) {
+  //TODO: provide config path and here will verify it. No commitments
+}
+
+adminEmitter.on("reloadConfig", async () => {
+  logger.info("Reloading config started");
+
+  notifications = {};
+
+  let configDetails = await prepareAndValidateConfig();
+
+  config = configDetails.config;
+  notifications = configDetails.notifications;
+
+  // if we need to change the log level
+  setDefaultLevel(config.general.logLevel);
+
+  await initNotifications(
+    notifications,
+    repoClient,
+    config.plugins,
+    config.qlik.host,
+    config.general.logLevel,
+    true
+  );
+
+  await createQlikNotifications(port);
+
+  //NOTE: shall we allow Qlik config to be changed on the fly?
+  //await prepareRepoClient();
+
+  logger.info("Reloading config finished");
+});
+
 let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
 let repoClient = {} as QlikRepoApi.client;
+let port = 0;
 
-const app = express();
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// async function prepareAndValidateConfig() {
+//   if (!fs.existsSync(".\\config.yaml"))
+//     throw new Error(`config.yaml not found`);
 
-async function prepareAndValidateConfig() {
-  config = yaml.load(readFileSync(".\\config.yaml")) as Config;
+//   let configRaw = readFileSync(".\\config.yaml").toString();
+//   config = yaml.load(configRaw) as Config;
 
-  const ajv = new Ajv({
-    allErrors: true,
-    strict: true,
-    strictRequired: true,
-    allowUnionTypes: true,
-  });
+//   if (config.general.vars) {
+//     if (!fs.existsSync(config.general.vars))
+//       throw new Error(
+//         `Variables files specified but do not exists: ${config.general.vars}`
+//       );
 
-  ajvErrors(ajv);
+//     const configVariables = configRaw
+//       .match(/(?<!\$)(\${)(.*?)(?=})/g)
+//       .map((v) => v.substring(2));
 
-  const configSchema = JSON.parse(
-    fs.readFileSync("./schemas/config.json").toString()
-  );
+//     const variablesData = varLoader({
+//       sources: {
+//         file: config.general.vars,
+//       },
+//       variables: configVariables,
+//     });
 
-  const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
+//     if (variablesData.missing)
+//       throw new Error(
+//         `Missing variable(s) value: ${variablesData.missing
+//           .map((v) => v)
+//           .join(", ")}`
+//       );
 
-  const valid = validate(config);
+//     configRaw = replaceVariables(configRaw, variablesData.values);
+//     config = yaml.load(configRaw) as Config;
+//   }
 
-  if (!valid) {
-    const errors = validate.errors.map((e) => e.message).join(", ");
-    throw new Error(errors);
-  }
+//   const ajv = new Ajv({
+//     allErrors: true,
+//     strict: true,
+//     strictRequired: true,
+//     allowUnionTypes: true,
+//   });
 
-  config.notifications.map((notification) => {
-    notifications[notification.id] = notification;
-  });
-}
+//   ajvErrors(ajv);
+
+//   const configSchema = JSON.parse(
+//     fs.readFileSync("./schemas/config.json").toString()
+//   );
+
+//   const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
+
+//   const valid = validate(config);
+
+//   if (!valid) {
+//     const errors = validate.errors.map((e) => e.message).join(", ");
+//     throw new Error(errors);
+//   }
+
+//   config.notifications.map((notification) => {
+//     notifications[notification.id] = notification;
+//   });
+// }
 
 async function prepareRepoClient() {
   const cert = readFileSync(`${config.qlik.cert}`);
@@ -155,29 +222,42 @@ async function createQlikNotifications(port: number) {
 async function run() {
   logger.info("Starting...");
 
-  await prepareAndValidateConfig();
+  let configDetails = await prepareAndValidateConfig();
+
+  config = configDetails.config;
+  notifications = configDetails.notifications;
 
   setDefaultLevel(config.general.logLevel);
 
   // if port is defined in the config - use it
   // if not then if certs are defined the default port is 8443
   // if not then defaults to 8080
-  const port = config.general?.port
+  port = config.general?.port
     ? config.general?.port
     : config.general.certs
     ? 8443
     : 8080;
 
   await prepareRepoClient();
+
   await initNotifications(
     notifications,
     repoClient,
     config.plugins,
     config.qlik.host,
-    config.general.logLevel
+    config.general.logLevel,
+    false
   );
 
   await createQlikNotifications(port);
+
+  startWebServer(port);
+}
+
+function startWebServer(port: number) {
+  const app = express();
+  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json());
 
   app.options(
     "/notifications/callback"
@@ -191,6 +271,8 @@ async function run() {
     res.status(404).send();
   });
 
+  // if certs config property exists then start HTTPS server
+  // else start HTTP server
   if (config.general.certs) {
     const privateKey = fs.readFileSync(
       `${config.general.certs}/key.pem`,
@@ -211,13 +293,43 @@ async function run() {
     logger.debug(`Certificates loaded from ${config.general.certs}`);
 
     httpsServer.listen(port, () => {
-      logger.info(`HTTPS web server is running on port ${port}`);
+      logger.info(`Core web server is running on port ${port} -> HTTPS`);
     });
   } else {
     app.listen(port, () => {
-      logger.info(`Web server is running on port ${port}`);
+      logger.info(`Core web server is running on port ${port}`);
     });
   }
+
+  const adminApp = express();
+  adminApp.use(express.urlencoded({ extended: true }));
+  adminApp.use(express.json());
+  adminApp.use("/static", express.static(path.join(__dirname, "./static")));
+  adminApp.use("/admin", adminRouter);
+
+  const adminPort = 8099;
+  adminApp.listen(adminPort, () => {
+    adminLogger.info(`Admin web server is running on port ${adminPort}`);
+  });
 }
+
+// function replaceVariables(
+//   text: string,
+//   vars: { [x: string]: string | number | boolean }
+// ) {
+//   Object.entries(vars).forEach(([varName, varValue]) => {
+//     try {
+//       const v = "\\$\\{" + varName + "\\}";
+//       const re = new RegExp(v, "g");
+
+//       // this.runbookVariablesValues[varName] = varValue;
+//       text = text.replace(re, varValue.toString());
+//     } catch (e) {
+//       this.logger.error(e.message, 9999);
+//     }
+//   });
+
+//   return text;
+// }
 
 run();

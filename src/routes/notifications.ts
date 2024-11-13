@@ -126,7 +126,8 @@ export async function initNotifications(
   apiClient: QlikRepoApi.client,
   config: Config["plugins"],
   qlikHost: string,
-  generalLogLevel: string
+  generalLogLevel: string,
+  isReload: boolean
 ) {
   configNotifications = notifications;
   repoClient = apiClient;
@@ -134,8 +135,11 @@ export async function initNotifications(
   corsOptions.origin = qlikHost;
   if (generalLogLevel) logLevel = generalLogLevel;
 
+  pluginLoggers = {};
+  plugins = {};
   await loadPlugins();
-  initRoutes();
+
+  if (isReload == false) initRoutes();
 }
 
 function loadBuiltinPlugins() {
@@ -170,12 +174,8 @@ async function loadPlugins() {
           };
           pluginLoggers[plugin.name] = localLogger;
         } catch (e) {
-          logger.crit(`Error while loading plugin from ${plugin.path}`);
-          logger.crit(e);
-          flushLogs();
-          await new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
-            process.exit(1);
-          });
+          logger.error(`Error while loading plugin from ${plugin.path}`);
+          throw new Error(e);
         }
       })
     );
@@ -183,15 +183,19 @@ async function loadPlugins() {
 }
 
 async function relay(b: NotificationData) {
-  await Promise.all(
-    b.config.callback.map((c) => {
-      try {
-        plugins[c.type](c, b, pluginLoggers[c.type]);
-      } catch (e) {
-        logger.error(e.message);
-      }
-    })
-  );
+  try {
+    await Promise.all(
+      b.config.callback.map((c) => {
+        try {
+          plugins[c.type](c, b, pluginLoggers[c.type]);
+        } catch (e) {
+          logger.error(e.message);
+        }
+      })
+    );
+  } catch (e) {
+    logger.error(e.message);
+  }
 }
 
 export { notificationsRouter };

@@ -12,6 +12,7 @@ export interface GeneralConfig {
   sourceWhitelist: string;
   certs: string;
   logLevel: LogLevels;
+  vars?: string;
 }
 
 export interface Notification {
