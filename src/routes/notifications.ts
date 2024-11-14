@@ -45,6 +45,11 @@ function initRoutes() {
       const notificationId = req.params["notificationId"];
       const notification = configNotifications[notificationId];
 
+      try {
+        // respond back to Qlik that the notification is received
+        res.status(200).send();
+      } catch (e) {}
+
       // if the notification is not found then remove it
       // its one of ours but seems that it no longer exists
       // and its not needed anymore
@@ -186,8 +191,8 @@ async function loadPlugins() {
   }
 }
 
-async function relay(b: NotificationData) {
-  await Promise.all(
+function relay(b: NotificationData) {
+  return Promise.all(
     b.config.callback.map((c) => plugins[c.type](c, b, pluginLoggers[c.type]))
   ).catch((e) => {
     logger.error(e.message);
