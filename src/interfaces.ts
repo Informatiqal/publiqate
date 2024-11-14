@@ -69,9 +69,11 @@ export interface Plugin {
 }
 
 export interface Callback {
-  details: {
-    method?: "get" | "post" | "put" | "delete";
-    url: string;
-    headers?: string[];
-  };
+  details:
+    | {
+        method?: "get" | "post" | "put" | "delete";
+        url: string;
+        headers?: string[];
+      }
+    | any;
 }

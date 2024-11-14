@@ -30,14 +30,15 @@ export async function implementation(
         status: r.statusText,
         text: r.text(),
       }))
-      .then((r) => {
+      .then((response) => {
+        // remove the callbacks details
+        // to avoid sending any sensitive data
+        delete n.config.callback;
+
         logger.debug(
           JSON.stringify({
-            response: r,
-            ...{
-              data: n.data,
-              entities: n.entity,
-            },
+            response,
+            ...n,
           })
         );
       })
@@ -62,14 +63,15 @@ export async function implementation(
         status: r.statusText,
         text: r.text(),
       }))
-      .then((r) => {
+      .then((response) => {
+        // remove the callbacks details
+        // to avoid sending any sensitive data
+        delete n.config.callback;
+
         logger.debug(
           JSON.stringify({
-            response: r,
-            ...{
-              data: n.data,
-              entities: n.entity,
-            },
+            response,
+            ...n,
           })
         );
       })

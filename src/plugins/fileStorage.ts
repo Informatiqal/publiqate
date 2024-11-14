@@ -1,5 +1,7 @@
 import { Callback, NotificationData } from "../interfaces";
 import winston from "winston";
+import fs from "fs";
+import path from "path";
 
 export const meta = {
   author: "Informatiqal",
@@ -13,5 +15,8 @@ export async function implementation(
 ) {
   delete n.config.callback;
 
-  logger.info(JSON.stringify(n));
+  const folder = path.dirname(c.details.path);
+  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
+  fs.appendFileSync(c.details.path, `${JSON.stringify(n)}\n`);
 }

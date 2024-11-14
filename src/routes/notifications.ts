@@ -6,6 +6,7 @@ import { QlikRepoApi } from "qlik-repo-api";
 import { flushLogs, logger, createPluginLogger } from "../lib/logger";
 import * as httpPlugin from "../plugins/http";
 import * as echoPlugin from "../plugins/echo";
+import * as fileStorage from "../plugins/fileStorage";
 import winston from "winston";
 
 let configNotifications = {} as { [k: string]: Notification };
@@ -161,6 +162,11 @@ function loadBuiltinPlugins() {
   pluginLoggers["echo"] = createPluginLogger("echo", logLevel);
   plugins["echo"] = echoPlugin.implementation;
   logger.info(`Built-in plugin "echo" loaded`);
+
+  // file store plugin
+  pluginLoggers["file"] = createPluginLogger("file", logLevel);
+  plugins["file"] = fileStorage.implementation;
+  logger.info(`Built-in plugin "file" loaded`);
 }
 
 async function loadPlugins() {
