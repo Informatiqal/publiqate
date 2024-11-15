@@ -44,8 +44,7 @@ export interface QlikComm {
   host: string;
   userName: string;
   userDir: string;
-  cert: string;
-  key: string;
+  certs: string;
 }
 
 export interface Config {

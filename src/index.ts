@@ -98,8 +98,8 @@ let repoClient = {} as QlikRepoApi.client;
 let port = 0;
 
 async function prepareRepoClient() {
-  const cert = readFileSync(`${config.qlik.cert}`);
-  const key = readFileSync(`${config.qlik.key}`);
+  const cert = readFileSync(`${config.qlik.certs}\\client.pem`);
+  const key = readFileSync(`${config.qlik.certs}\\client_key.pem`);
 
   repoClient = new QlikRepoApi.client({
     host: config.qlik.host,

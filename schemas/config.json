@@ -72,10 +72,7 @@
         "qlik": {
             "type": "object",
             "properties": {
-                "cert": {
-                    "type": "string"
-                },
-                "key": {
+                "certs": {
                     "type": "string"
                 },
                 "host": {
@@ -89,8 +86,7 @@
                 }
             },
             "required": [
-                "cert",
-                "key",
+                "certs",
                 "host",
                 "userName",
                 "userDir"

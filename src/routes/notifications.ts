@@ -119,11 +119,8 @@ function initRoutes() {
 
         relay(notificationData);
       } catch (e) {
-        logger.error(
-          `Error while retrieving entity information. Below is the available notification data and the actual error message`
-        );
         logger.error(`${JSON.stringify(notificationData)}`);
-        logger.error(e.message);
+        logger.error(e);
       }
     }
   );
