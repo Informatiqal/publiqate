@@ -5,6 +5,7 @@ import ajvErrors from "ajv-errors";
 import Ajv, { ValidateFunction } from "ajv";
 
 import { Config, Notification } from "../interfaces";
+import { randomUUID } from "crypto";
 
 export async function readAndParseConfig() {
   if (!fs.existsSync(".\\config.yaml"))
@@ -18,6 +19,8 @@ export async function readAndParseConfig() {
       throw new Error(
         `Variables files specified but do not exists: ${config.general.vars}`
       );
+
+    configRaw = replaceSpecialVariables(configRaw);
 
     const configVariables = configRaw
       .match(/(?<!\$)(\${)(.*?)(?=})/g)
@@ -91,12 +94,48 @@ function replaceVariables(
       const v = "\\$\\{" + varName + "\\}";
       const re = new RegExp(v, "g");
 
-      // this.runbookVariablesValues[varName] = varValue;
       text = text.replace(re, varValue.toString());
     } catch (e) {
-      this.logger.error(e.message, 9999);
+      throw new Error(e.message);
     }
   });
 
   return text;
+}
+
+// replace the special variables -  GUID, TODAY, NOW, RANDOM
+function replaceSpecialVariables(configString: string): string {
+  const date = new Date();
+  const today = date.toISOString().split("T")[0].replace(/-/gi, "");
+  const time = date
+    .toISOString()
+    .split("T")[1]
+    .split(".")[0]
+    .replace(/:/gi, "");
+
+  let a = configString.match(/(?<=\${)(.*?)(?=})/g);
+
+  // nothing to replace. no need to proceed return the config as it is
+  if (!a) return configString;
+
+  if (a.includes("TODAY"))
+    configString = configString.replace(/\${TODAY}/gi, today);
+
+  if (a.includes("GUID"))
+    configString = configString.replace(/\${GUID}/gi, () =>
+      randomUUID().replace(/-/gi, "")
+    );
+
+  if (a.includes("NOW"))
+    configString = configString.replace(/\${NOW}/gi, () => `${today}${time}`);
+
+  if (a.includes("RANDOM"))
+    configString = configString.replace(/\${RANDOM}/gi, function () {
+      return [...Array(20)]
+        .map(() => Math.random().toString(36)[2])
+        .join("")
+        .toUpperCase();
+    });
+
+  return configString;
 }
