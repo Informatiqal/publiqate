@@ -1,20 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>NotifiQation Admin</title>
-    <link rel="icon" type="image/png" href="/static/icon.png" />
-    <style>
-      body {
-        padding-top: 50px;
-      }
-    </style>
-  </head>
-  <body>
-    <div>
-      <button id="reloadConfig">Reload config</button>
-      <button id="verifyConfig">Verify config</button>
-    </div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <title>NotifiQation Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="icon" type="image/png" href="/static/icon.png" />
+  <link href="/static/styles.css" rel="stylesheet" />
+</head>
+<body>
+  <main-header>
+    <div>notifiQation Admin</div>
+  </main-header>
+  <main-content>
+    <actions>
+      <action>
+        <div id="reloadConfig">Reload config</div>
+      </action>
+
+      <action>
+        <div id="verifyConfig">Verify config</div>
+      </action>
+    </actions>
+  </main-content>
   <script src="/static/admin.js" type="text/javascript"></script>
-</html>
+</body>

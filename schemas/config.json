@@ -28,11 +28,37 @@
                 "vars": {
                     "type": "string",
                     "description": "Location to file where secrets are stored"
+                },
+                "admin": {
+                    "type": "object",
+                    "properties": {
+                        "cookie": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "value"
+                            ],
+                            "additionalProperties": false
+                        }
+                    },
+                    "required": [
+                        "cookie"
+                    ],
+                    "additionalProperties": false
                 }
             },
             "required": [
                 "port",
-                "uri"
+                "uri",
+                "admin"
             ],
             "additionalProperties": false
         },

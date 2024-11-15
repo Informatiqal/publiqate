@@ -19,7 +19,7 @@ import { notificationsRouter, initNotifications } from "./routes/notifications";
 
 import { Config, Notification } from "./interfaces";
 import { adminRouter } from "./routes/admin";
-import { apiRouter, apiEmitter } from "./routes/api";
+import { apiRouter, apiEmitter, setCookieSecret } from "./routes/api";
 import { prepareAndValidateConfig } from "./lib/configValidate";
 
 process.on("uncaughtException", (e) => {
@@ -246,6 +246,8 @@ function startWebServer(port: number) {
   adminApp.use("/static", express.static(path.join(__dirname, "./static")));
   adminApp.use("/admin", adminRouter);
   adminApp.use("/api", apiRouter);
+
+  setCookieSecret(config.general.admin.cookie);
 
   const adminPort = 8099;
   adminApp.listen(adminPort, () => {

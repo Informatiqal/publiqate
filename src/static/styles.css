@@ -1,0 +1,42 @@
+body {
+  display: grid;
+  grid-template-rows: 50px auto;
+  gap: 5px;
+  height: 100vh;
+  margin: 0;
+  background: #2e2c54;
+  color: #a2ebcd;
+  font-family: "JetBrains Mono", serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+}
+
+main-header {
+  border-bottom: 3px solid #fc9228;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+main-header > div {
+  font-size: 2em;
+}
+
+main-content {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+actions {
+  display: grid;
+  grid-template-rows: 30px auto;
+}
+
+action {
+  font-size: 20px;
+}
+
+action > div {
+  cursor: pointer;
+}

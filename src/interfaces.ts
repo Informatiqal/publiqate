@@ -6,6 +6,11 @@ import winston from "winston";
 
 export type LogLevels = "crit" | "error" | "warning" | "info" | "debug";
 
+export interface CookieSecret {
+  name: string;
+  value: string;
+}
+
 export interface GeneralConfig {
   port: number;
   uri: string;
@@ -13,6 +18,9 @@ export interface GeneralConfig {
   certs: string;
   logLevel: LogLevels;
   vars?: string;
+  admin: {
+    cookie: CookieSecret;
+  };
 }
 
 export interface Notification {
