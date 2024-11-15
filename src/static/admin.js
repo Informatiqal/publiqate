@@ -1,12 +1,12 @@
 async function reloadConfig() {
-    const reloadResponse = await fetch("/admin/api/reload-config")
+    const reloadResponse = await fetch("/api/reload-config")
     const reload = await reloadResponse.text()
 
     console.log(reload)
 }
 
 async function verifyConfig() {
-    const verifyResponse = await fetch("/admin/api/verify-config")
+    const verifyResponse = await fetch("/api/verify-config")
     const verify = await verifyResponse.json()
 
     console.log(verify)

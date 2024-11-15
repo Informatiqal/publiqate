@@ -18,7 +18,8 @@ import { generalRouter } from "./routes/general";
 import { notificationsRouter, initNotifications } from "./routes/notifications";
 
 import { Config, Notification } from "./interfaces";
-import { adminRouter, adminEmitter } from "./routes/admin";
+import { adminRouter } from "./routes/admin";
+import { apiRouter, apiEmitter } from "./routes/api";
 import { prepareAndValidateConfig } from "./lib/configValidate";
 
 process.on("uncaughtException", (e) => {
@@ -61,7 +62,7 @@ if (values["verify"]) {
   //TODO: provide config path and here will verify it. No commitments
 }
 
-adminEmitter.on("reloadConfig", async () => {
+apiEmitter.on("reloadConfig", async () => {
   logger.info("Reloading config started");
 
   notifications = {};
@@ -95,68 +96,6 @@ let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
 let repoClient = {} as QlikRepoApi.client;
 let port = 0;
-
-// async function prepareAndValidateConfig() {
-//   if (!fs.existsSync(".\\config.yaml"))
-//     throw new Error(`config.yaml not found`);
-
-//   let configRaw = readFileSync(".\\config.yaml").toString();
-//   config = yaml.load(configRaw) as Config;
-
-//   if (config.general.vars) {
-//     if (!fs.existsSync(config.general.vars))
-//       throw new Error(
-//         `Variables files specified but do not exists: ${config.general.vars}`
-//       );
-
-//     const configVariables = configRaw
-//       .match(/(?<!\$)(\${)(.*?)(?=})/g)
-//       .map((v) => v.substring(2));
-
-//     const variablesData = varLoader({
-//       sources: {
-//         file: config.general.vars,
-//       },
-//       variables: configVariables,
-//     });
-
-//     if (variablesData.missing)
-//       throw new Error(
-//         `Missing variable(s) value: ${variablesData.missing
-//           .map((v) => v)
-//           .join(", ")}`
-//       );
-
-//     configRaw = replaceVariables(configRaw, variablesData.values);
-//     config = yaml.load(configRaw) as Config;
-//   }
-
-//   const ajv = new Ajv({
-//     allErrors: true,
-//     strict: true,
-//     strictRequired: true,
-//     allowUnionTypes: true,
-//   });
-
-//   ajvErrors(ajv);
-
-//   const configSchema = JSON.parse(
-//     fs.readFileSync("./schemas/config.json").toString()
-//   );
-
-//   const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
-
-//   const valid = validate(config);
-
-//   if (!valid) {
-//     const errors = validate.errors.map((e) => e.message).join(", ");
-//     throw new Error(errors);
-//   }
-
-//   config.notifications.map((notification) => {
-//     notifications[notification.id] = notification;
-//   });
-// }
 
 async function prepareRepoClient() {
   const cert = readFileSync(`${config.qlik.cert}`);
@@ -306,30 +245,12 @@ function startWebServer(port: number) {
   adminApp.use(express.json());
   adminApp.use("/static", express.static(path.join(__dirname, "./static")));
   adminApp.use("/admin", adminRouter);
+  adminApp.use("/api", apiRouter);
 
   const adminPort = 8099;
   adminApp.listen(adminPort, () => {
     adminLogger.info(`Admin web server is running on port ${adminPort}`);
   });
 }
-
-// function replaceVariables(
-//   text: string,
-//   vars: { [x: string]: string | number | boolean }
-// ) {
-//   Object.entries(vars).forEach(([varName, varValue]) => {
-//     try {
-//       const v = "\\$\\{" + varName + "\\}";
-//       const re = new RegExp(v, "g");
-
-//       // this.runbookVariablesValues[varName] = varValue;
-//       text = text.replace(re, varValue.toString());
-//     } catch (e) {
-//       this.logger.error(e.message, 9999);
-//     }
-//   });
-
-//   return text;
-// }
 
 run();
