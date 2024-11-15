@@ -17,6 +17,9 @@
                 "certs": {
                     "type": "string"
                 },
+                "sourceWhitelist": {
+                    "type": "string"
+                },
                 "logLevel": {
                     "type": "string",
                     "enum": [

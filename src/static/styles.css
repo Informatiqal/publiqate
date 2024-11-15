@@ -23,6 +23,7 @@ main-header {
 main-header > div {
   font-size: 3em;
   color: #f8ce22;
+  letter-spacing: 0.2em;
 }
 
 main-content {

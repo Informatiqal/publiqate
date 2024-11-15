@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
-const __dirname = path.dirname(__filename); // get the name of the directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import express from "express";
 import cors from "cors";
@@ -56,10 +56,6 @@ if (values["uuid"]) {
   const id = uuidv4();
   console.log(id);
   process.exit(0);
-}
-
-if (values["verify"]) {
-  //TODO: provide config path and here will verify it. No commitments
 }
 
 apiEmitter.on("reloadConfig", async () => {
@@ -124,17 +120,48 @@ async function createQlikNotifications(port: number) {
     delete: 3,
   };
 
+  const notificationTypes = [
+    "App",
+    "AnalyticConnection",
+    "ContentLibrary",
+    "DataConnection",
+    "Extension",
+    "ReloadTask",
+    "Stream",
+    "User",
+    "UserSyncTask",
+    "SystemRule",
+    "Tag",
+    "CustomPropertyDefinition",
+    "EngineService",
+    "OdagService",
+    "PrintingService",
+    "ProxyService",
+    "RepositoryService",
+    "SchedulerService",
+    "ServerNodeConfiguration",
+    "VirtualProxyConfig",
+  ];
+
   const callbackURLProtocol = config.general.certs ? "https" : "http";
   const callbackBaseURL = `${callbackURLProtocol}://${config.general.uri}:${port}`;
 
   await Promise.all(
     Object.entries(notifications).map(([id, notification]) => {
+      if (!notificationTypes.includes(notification.type))
+        throw new Error(
+          `Notification type "${notification.type}" is not valid value`
+        );
+
+      if (!changeTypes[notification.changeType.toLowerCase()])
+        throw new Error(
+          `changeType "${notification.changeType}" is not valid value`
+        );
+
       const notificationData = {
         name: notification.type,
         uri: `${callbackBaseURL}/notifications/callback/${id}`,
       };
-
-      //TODO: validations should be performed here
 
       notificationData["changeType"] =
         changeTypes[notification.changeType.toLowerCase()];
