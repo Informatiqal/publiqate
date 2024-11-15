@@ -20,6 +20,8 @@ export interface GeneralConfig {
   vars?: string;
   admin: {
     cookie: CookieSecret;
+    certs: string;
+    port?: number;
   };
 }
 

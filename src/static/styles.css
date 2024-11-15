@@ -1,7 +1,7 @@
 body {
   display: grid;
-  grid-template-rows: 50px auto;
-  gap: 5px;
+  grid-template-rows: 100px auto;
+  gap: 20px;
   height: 100vh;
   margin: 0;
   background: #2e2c54;
@@ -17,10 +17,12 @@ main-header {
   display: flex;
   align-items: center;
   justify-content: center;
+  letter-spacing: 0.2em;
 }
 
 main-header > div {
-  font-size: 2em;
+  font-size: 3em;
+  color: #f8ce22;
 }
 
 main-content {
@@ -31,6 +33,7 @@ main-content {
 actions {
   display: grid;
   grid-template-rows: 30px auto;
+  gap: 10px;
 }
 
 action {

@@ -240,6 +240,7 @@ function startWebServer(port: number) {
     });
   }
 
+  // Admin https server below
   const adminApp = express();
   adminApp.use(express.urlencoded({ extended: true }));
   adminApp.use(express.json());
@@ -249,9 +250,28 @@ function startWebServer(port: number) {
 
   setCookieSecret(config.general.admin.cookie);
 
-  const adminPort = 8099;
-  adminApp.listen(adminPort, () => {
-    adminLogger.info(`Admin web server is running on port ${adminPort}`);
+  const adminPort = config.general.admin.port || 8099;
+
+  const adminPrivateKey = fs.readFileSync(
+    `${config.general.admin.certs}/key.pem`,
+    "utf8"
+  );
+  const adminCertificate = fs.readFileSync(
+    `${config.general.admin.certs}/cert.pem`,
+    "utf8"
+  );
+  const httpsAdminServer = https.createServer(
+    {
+      key: adminPrivateKey,
+      cert: adminCertificate,
+    },
+    adminApp
+  );
+
+  logger.debug(`Admin Certificates loaded from ${config.general.certs}`);
+
+  httpsAdminServer.listen(adminPort, () => {
+    adminLogger.info(`Admin HTTPS web server is running on port ${adminPort}`);
   });
 }
 

@@ -47,10 +47,17 @@
                                 "value"
                             ],
                             "additionalProperties": false
+                        },
+                        "certs": {
+                            "type": "string"
+                        },
+                        "port": {
+                            "type": "number"
                         }
                     },
                     "required": [
-                        "cookie"
+                        "cookie",
+                        "certs"
                     ],
                     "additionalProperties": false
                 }
