@@ -15,22 +15,30 @@ let cookieSecret: CookieSecret = {
 };
 
 apiRouter.use(cookieParser());
-apiRouter.use((req: Request, res: Response, next: NextFunction) => {
-  if (!req.cookies[cookieSecret.name]) {
-    res.status(403).send();
-  } else {
-    if (req.cookies[cookieSecret.name] != cookieSecret.value) {
-      res.status(403).send();
+apiRouter.use(
+  async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+    if (!req.cookies[cookieSecret.name]) {
+      return res.status(403).send();
     } else {
-      next();
+      if (req.cookies[cookieSecret.name] != cookieSecret.value) {
+        return res.status(403).send();
+      } else {
+        next();
+      }
     }
   }
-});
+);
 
-apiRouter.get("/reload-config", (req: Request, res: Response) => {
+//@ts-ignore
+apiRouter.get("/reload-config", async (req: Request, res: Response) => {
+  const { valid, validate } = await validateConfig();
+
+  if (valid == false)
+    return res.status(500).json({ valid, errors: validate?.errors || [] });
+
   adminLogger.info("Received config reload");
   apiEmitter.emit("reloadConfig");
-  res.status(200).send("");
+  res.status(200).send();
 });
 
 apiRouter.get("/verify-config", async (req: Request, res: Response) => {

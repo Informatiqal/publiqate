@@ -22,6 +22,8 @@ import { adminRouter } from "./routes/admin";
 import { apiRouter, apiEmitter, setCookieSecret } from "./routes/api";
 import { prepareAndValidateConfig } from "./lib/configValidate";
 
+process.setMaxListeners(100)
+
 process.on("uncaughtException", (e) => {
   logger.crit(e.message);
   flushLogs();
@@ -135,6 +137,7 @@ async function createQlikNotifications(port: number) {
     "ContentLibrary",
     "DataConnection",
     "Extension",
+    "ExecutionResult",
     "ReloadTask",
     "Stream",
     "User",
@@ -235,10 +238,10 @@ function startWebServer(port: number) {
   app.use(express.json());
 
   app.options(
-    "/notifications/callback"
-    // cors({
-    //   origin: config.qlik.host,
-    // })
+    "/notifications/callback",
+    cors({
+      origin: config.qlik.host,
+    })
   );
   app.use("/", generalRouter);
   app.use("/notifications", notificationsRouter);
