@@ -90,9 +90,7 @@
             },
             "required": [
                 "certs",
-                "host",
-                "userName",
-                "userDir"
+                "host"
             ],
             "additionalProperties": false
         },

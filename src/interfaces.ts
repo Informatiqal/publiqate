@@ -42,8 +42,8 @@ export interface Notification {
 
 export interface QlikComm {
   host: string;
-  userName: string;
-  userDir: string;
+  userName?: string;
+  userDir?: string;
   certs: string;
 }
 

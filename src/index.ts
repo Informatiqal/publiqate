@@ -97,13 +97,22 @@ async function prepareRepoClient() {
   const cert = readFileSync(`${config.qlik.certs}\\client.pem`);
   const key = readFileSync(`${config.qlik.certs}\\client_key.pem`);
 
+  let authentication = {
+    user_dir: "INTERNAL",
+    user_name: "sa_scheduler",
+  };
+
+  if (config.qlik.userDir && config.qlik.userName) {
+    authentication = {
+      user_dir: config.qlik.userDir,
+      user_name: config.qlik.userName,
+    };
+  }
+
   repoClient = new QlikRepoApi.client({
     host: config.qlik.host,
     port: 4242,
-    authentication: {
-      user_dir: config.qlik.userDir,
-      user_name: config.qlik.userName,
-    },
+    authentication,
     httpsAgent: new https.Agent({
       rejectUnauthorized: false,
       cert: cert,
