@@ -1,9 +1,8 @@
-import express, { Request, Response } from "express";
-import cors from "cors";
+import express, { NextFunction, Request, Response } from "express";
 import { Config, Plugin, Notification, NotificationData } from "../interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
 
-import { flushLogs, logger, createPluginLogger } from "../lib/logger";
+import { logger, createPluginLogger } from "../lib/logger";
 import * as httpPlugin from "../plugins/http";
 import * as echoPlugin from "../plugins/echo";
 import * as fileStorage from "../plugins/fileStorage";
@@ -30,18 +29,25 @@ const corsOptions = {
 
 const notificationsRouter = express.Router();
 
-function initRoutes() {
-  notificationsRouter.get(
-    "/callback",
-    // cors(corsOptions),
-    (req: Request, res: Response) => {
-      res.status(200).send("Blah");
-    }
+function checkWhitelisting(req: Request, res: Response, next: NextFunction) {
+  const regEx = new RegExp(
+    /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/gim
   );
 
+  const regExResult = regEx.exec(req.headers.origin);
+  const origin = regExResult[1] ? regExResult[1] : "";
+
+  if (corsOptions.origin.toLowerCase() != origin.toLowerCase()) {
+    res.status(403).send();
+  } else {
+    next();
+  }
+}
+
+function initRoutes() {
   notificationsRouter.post(
     "/callback/:notificationId",
-    // cors(corsOptions),
+    checkWhitelisting,
     async (req: Request, res: Response) => {
       const notificationId = req.params["notificationId"];
       const notification = configNotifications[notificationId];
@@ -56,9 +62,25 @@ function initRoutes() {
       // and its not needed anymore
       if (!notification) {
         try {
-          repoClient.notification.remove({
-            handle: notificationId,
-          });
+          repoClient.notification
+            .remove({
+              handle: notificationId,
+            })
+            .then((r) => {
+              logger.info(
+                [
+                  `Received notification with ID: "${notificationId}". `,
+                  `This ID dont exists in the config (anymore?). `,
+                  `Because of this the specific notification is de-registered from Qlik`,
+                ].join("")
+              );
+            })
+            .catch((e) => {
+              logger.warning(
+                `Error while deleting notification with ID: ${notificationId}`
+              );
+              logger.warning(e);
+            });
         } catch (e) {
           //
         }
@@ -124,6 +146,10 @@ function initRoutes() {
       }
     }
   );
+
+  notificationsRouter.post("/health", async (req: Request, res: Response) => {
+    res.status(200).send();
+  });
 }
 
 export async function initNotifications(

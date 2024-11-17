@@ -7,7 +7,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import express from "express";
-import cors from "cors";
 import https from "https";
 import { v4 as uuidv4 } from "uuid";
 import { readFileSync } from "fs";
@@ -22,7 +21,7 @@ import { adminRouter } from "./routes/admin";
 import { apiRouter, apiEmitter, setCookieSecret } from "./routes/api";
 import { prepareAndValidateConfig } from "./lib/configValidate";
 
-process.setMaxListeners(100)
+process.setMaxListeners(100);
 
 process.on("uncaughtException", (e) => {
   logger.crit(e.message);
@@ -77,7 +76,7 @@ apiEmitter.on("reloadConfig", async () => {
     notifications,
     repoClient,
     config.plugins,
-    config.qlik.host,
+    config.general.sourceWhitelist,
     config.general.logLevel,
     true
   );
@@ -222,7 +221,7 @@ async function run() {
     notifications,
     repoClient,
     config.plugins,
-    config.qlik.host,
+    config.general.sourceWhitelist,
     config.general.logLevel,
     false
   );
@@ -237,12 +236,11 @@ function startWebServer(port: number) {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
 
-  app.options(
-    "/notifications/callback",
-    cors({
-      origin: config.qlik.host,
-    })
-  );
+  app.use(function (req, res, next) {
+    req.headers.origin = req.headers.origin || req.headers.host;
+    next();
+  });
+
   app.use("/", generalRouter);
   app.use("/notifications", notificationsRouter);
   app.all("*", (req, res) => {
