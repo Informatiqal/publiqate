@@ -2,7 +2,12 @@ import express, { NextFunction, Request, Response } from "express";
 import { Config, Plugin, Notification, NotificationData } from "../interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
 
-import { logger, createPluginLogger } from "../lib/logger";
+import {
+  logger,
+  createPluginLogger,
+  fileTransport,
+  defaultLevel,
+} from "../lib/logger";
 import * as httpPlugin from "../plugins/http";
 import * as echoPlugin from "../plugins/echo";
 import * as fileStorage from "../plugins/fileStorage";
@@ -168,8 +173,13 @@ export async function initNotifications(
   corsOptions.origin = qlikHost;
   if (generalLogLevel) logLevel = generalLogLevel;
 
+  // clear all existing (if any) loggers
+  Object.entries(pluginLoggers).map(([name, logger]) => {
+    logger.close();
+  });
   pluginLoggers = {};
   plugins = {};
+  
   await loadPlugins();
 
   if (isReload == false) initRoutes();
@@ -206,10 +216,23 @@ async function loadPlugins() {
             `External plugin "${plugin.name}" loaded from "${plugin.path}"`
           );
 
-          const localLogger = { ...logger } as winston.Logger;
-          localLogger.defaultMeta = {
-            service: plugin.name,
-          };
+          const localLogger = winston.createLogger({
+            transports: [new winston.transports.Console(), fileTransport],
+            levels: winston.config.syslog.levels,
+            level: defaultLevel,
+            format: winston.format.combine(
+              winston.format.timestamp(),
+              winston.format.printf(
+                ({ timestamp, level, message, service }) => {
+                  return `${timestamp}\t${level.toUpperCase()}\t${service}\t${message}`;
+                }
+              )
+            ),
+            defaultMeta: {
+              service: plugin.name,
+            },
+          });
+
           pluginLoggers[plugin.name] = localLogger;
         } catch (e) {
           logger.error(`Error while loading plugin from ${plugin.path}`);

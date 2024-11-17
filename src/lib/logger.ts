@@ -85,4 +85,4 @@ function createPluginLogger(pluginName: string, logLevel: string) {
   });
 }
 
-export { logger, createPluginLogger, setDefaultLevel, adminLogger };
+export { logger, createPluginLogger, setDefaultLevel, adminLogger, fileTransport, defaultLevel };
