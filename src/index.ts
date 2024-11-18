@@ -84,41 +84,43 @@ apiEmitter.on("reloadConfig", async () => {
   await createQlikNotifications(port);
 
   //NOTE: shall we allow Qlik config to be changed on the fly?
-  //await prepareRepoClient();
+  //await prepareRepoClients();
 
   logger.info("Reloading config finished");
 });
 
 let config = {} as Config;
 let notifications = {} as { [k: string]: Notification };
-let repoClient = {} as QlikRepoApi.client;
+let repoClient = {} as { [k: string]: QlikRepoApi.client };
 let port = 0;
 
-async function prepareRepoClient() {
-  const cert = readFileSync(`${config.qlik.certs}\\client.pem`);
-  const key = readFileSync(`${config.qlik.certs}\\client_key.pem`);
+async function prepareRepoClients() {
+  config.qlik.map((q) => {
+    const cert = readFileSync(`${q.certs}\\client.pem`);
+    const key = readFileSync(`${q.certs}\\client_key.pem`);
 
-  let authentication = {
-    user_dir: "INTERNAL",
-    user_name: "sa_scheduler",
-  };
-
-  if (config.qlik.userDir && config.qlik.userName) {
-    authentication = {
-      user_dir: config.qlik.userDir,
-      user_name: config.qlik.userName,
+    let authentication = {
+      user_dir: "INTERNAL",
+      user_name: "sa_scheduler",
     };
-  }
 
-  repoClient = new QlikRepoApi.client({
-    host: config.qlik.host,
-    port: 4242,
-    authentication,
-    httpsAgent: new https.Agent({
-      rejectUnauthorized: false,
-      cert: cert,
-      key: key,
-    }),
+    if (q.userDir && q.userName) {
+      authentication = {
+        user_dir: q.userDir,
+        user_name: q.userName,
+      };
+    }
+
+    repoClient[q.name] = new QlikRepoApi.client({
+      host: q.host,
+      port: 4242,
+      authentication,
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false,
+        cert: cert,
+        key: key,
+      }),
+    });
   });
 }
 
@@ -185,13 +187,15 @@ async function createQlikNotifications(port: number) {
       if (!notification.hasOwnProperty("getEntityDetails"))
         notification.getEntityDetails = true;
 
-      return repoClient.notification.create(notificationData).then((e) => {
-        logger.info(
-          `Notification "${notification.name}" registered. ID: ${id}`
-        );
+      return repoClient[notification.environment].notification
+        .create(notificationData)
+        .then((e) => {
+          logger.info(
+            `Notification "${notification.name}" registered. ID: ${id}`
+          );
 
-        logger.debug(`Create notification response from Qlik: ${e}`);
-      });
+          logger.debug(`Create notification response from Qlik: ${e}`);
+        });
     })
   );
 }
@@ -215,7 +219,7 @@ async function run() {
     ? 8443
     : 8080;
 
-  await prepareRepoClient();
+  await prepareRepoClients();
 
   await initNotifications(
     notifications,

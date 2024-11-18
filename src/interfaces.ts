@@ -28,6 +28,7 @@ export interface GeneralConfig {
 export interface Notification {
   type: NotificationObjectType;
   id: string;
+  environment: string;
   name?: string;
   filter?: string;
   condition?: string;
@@ -41,6 +42,7 @@ export interface Notification {
 }
 
 export interface QlikComm {
+  name: string;
   host: string;
   userName?: string;
   userDir?: string;
@@ -49,7 +51,7 @@ export interface QlikComm {
 
 export interface Config {
   general: GeneralConfig;
-  qlik: QlikComm;
+  qlik: QlikComm[];
   notifications: Notification[];
   plugins: {
     name: string;

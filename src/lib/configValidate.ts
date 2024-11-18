@@ -66,16 +66,32 @@ export async function validateConfig() {
   const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
   const valid = validate(config);
 
-  return { valid, validate, config, configRaw };
+  const missingEnv = getMissingEnvironment(config);
+  if (missingEnv.length > 0) {
+    if (!validate.errors) {
+      validate.errors = [];
+    }
+
+    (validate.errors as any).push({
+      message: `Missing Qlik environment(s): ${missingEnv.join(",")}`,
+    });
+  }
+
+  return { valid, validate, config, configRaw, missingEnv };
 }
 
 export async function prepareAndValidateConfig() {
-  const { valid, validate, config, configRaw } = await validateConfig();
+  const { valid, validate, config, configRaw, missingEnv } =
+    await validateConfig();
 
   if (!valid) {
     const errors = validate.errors.map((e) => e.message).join(", ");
     throw new Error(errors);
   }
+
+  if (missingEnv.length > 0)
+    throw new Error(`Missing Qlik environment(s): ${missingEnv.join(",")}`);
+
   const notifications = {} as { [k: string]: Notification };
 
   config.notifications.map((notification) => {
@@ -138,4 +154,15 @@ function replaceSpecialVariables(configString: string): string {
     });
 
   return configString;
+}
+
+function getMissingEnvironment(config: Config) {
+  const qlikEnv = config.qlik.map((q) => q.name);
+  const notificationEnv = [
+    ...new Set(config.notifications.map((n) => n.environment)),
+  ];
+
+  return notificationEnv
+    .map((b1) => (qlikEnv.includes(b1) ? true : b1))
+    .filter((b1) => b1 != true);
 }

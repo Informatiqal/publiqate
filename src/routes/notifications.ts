@@ -14,7 +14,7 @@ import * as fileStorage from "../plugins/fileStorage";
 import winston from "winston";
 
 let configNotifications = {} as { [k: string]: Notification };
-let repoClient = {} as QlikRepoApi.client;
+let repoClient = {} as { [k: string]: QlikRepoApi.client };
 let pluginsConfig = [] as Config["plugins"];
 let pluginLoggers: {
   [k: string]: winston.Logger;
@@ -67,7 +67,7 @@ function initRoutes() {
       // and its not needed anymore
       if (!notification) {
         try {
-          repoClient.notification
+          repoClient[notification.environment].notification
             .remove({
               handle: notificationId,
             })
@@ -120,17 +120,17 @@ function initRoutes() {
         const entities = await Promise.all(
           req.body.map((entity) => {
             if (objectType == "executionResults") {
-              return repoClient[objectType]
+              return repoClient[notification.environment][objectType]
                 .get({
                   id: entity.objectID,
                 })
                 .then((execResult) => {
-                  return repoClient.tasks.get({
+                  return repoClient[notification.environment].tasks.get({
                     id: execResult.details.taskID,
                   });
                 });
             } else {
-              return repoClient[objectType].get({
+              return repoClient[notification.environment][objectType].get({
                 id: entity.objectID,
               });
             }
@@ -161,7 +161,7 @@ export async function initNotifications(
   notifications: {
     [k: string]: Notification;
   },
-  apiClient: QlikRepoApi.client,
+  apiClient: { [k: string]: QlikRepoApi.client },
   config: Config["plugins"],
   qlikHost: string,
   generalLogLevel: string,
@@ -179,7 +179,7 @@ export async function initNotifications(
   });
   pluginLoggers = {};
   plugins = {};
-  
+
   await loadPlugins();
 
   if (isReload == false) initRoutes();

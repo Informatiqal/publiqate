@@ -73,26 +73,34 @@
             "additionalProperties": false
         },
         "qlik": {
-            "type": "object",
-            "properties": {
-                "certs": {
-                    "type": "string"
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "certs": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "userName": {
+                        "type": "string"
+                    },
+                    "userDir": {
+                        "type": "string"
+                    }
                 },
-                "host": {
-                    "type": "string"
-                },
-                "userName": {
-                    "type": "string"
-                },
-                "userDir": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "certs",
-                "host"
-            ],
-            "additionalProperties": false
+                "required": [
+                    "name",
+                    "certs",
+                    "host"
+                ],
+                "additionalProperties": false
+            }
         },
         "plugins": {
             "type": "array",
@@ -155,6 +163,9 @@
                             "VirtualProxyConfig"
                         ]
                     },
+                    "environment": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -203,6 +214,7 @@
                 "required": [
                     "type",
                     "name",
+                    "environment",
                     "id",
                     "changeType",
                     "callback"
