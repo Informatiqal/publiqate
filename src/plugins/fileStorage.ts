@@ -10,9 +10,10 @@ export const meta = {
 
 export async function implementation(
   c: Callback,
-  n: NotificationData,
+  notification: NotificationData,
   logger: winston.Logger
 ) {
+  const n = JSON.parse(JSON.stringify(notification));
   delete n.config.callback;
 
   const folder = path.dirname(c.details.path);

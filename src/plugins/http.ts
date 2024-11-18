@@ -10,9 +10,12 @@ export const meta = {
 
 export async function implementation(
   c: Callback,
-  n: NotificationData,
+  notification: NotificationData,
   logger: Logger
 ) {
+  const n = JSON.parse(JSON.stringify(notification));
+  delete n.config.callback;
+
   let headers = { "Content-Type": "application/json" };
 
   if (c.details.headers) headers = { ...headers, ...c.details.headers };

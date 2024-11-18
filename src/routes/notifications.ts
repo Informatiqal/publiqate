@@ -1,5 +1,11 @@
 import express, { NextFunction, Request, Response } from "express";
-import { Config, Plugin, Notification, NotificationData } from "../interfaces";
+import {
+  Config,
+  Plugin,
+  Notification,
+  NotificationData,
+  QlikComm,
+} from "../interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
 
 import {
@@ -27,6 +33,7 @@ let plugins: {
   ) => Promise<any>;
 } = {};
 let logLevel = "info";
+let environments = [] as unknown as QlikComm[];
 
 const corsOptions = {
   origin: "",
@@ -100,6 +107,9 @@ function initRoutes() {
 
       const notificationData: NotificationData = {
         config: notification,
+        environment: environments.filter(
+          (e) => e.name == notification.environment
+        )[0],
         data: req.body,
         entity: [],
       };
@@ -163,6 +173,7 @@ export async function initNotifications(
   },
   apiClient: { [k: string]: QlikRepoApi.client },
   config: Config["plugins"],
+  qlikEnvironments: QlikComm[],
   qlikHost: string,
   generalLogLevel: string,
   isReload: boolean
@@ -171,6 +182,7 @@ export async function initNotifications(
   repoClient = apiClient;
   pluginsConfig = config;
   corsOptions.origin = qlikHost;
+  environments = qlikEnvironments;
   if (generalLogLevel) logLevel = generalLogLevel;
 
   // clear all existing (if any) loggers

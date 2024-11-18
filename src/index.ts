@@ -76,6 +76,7 @@ apiEmitter.on("reloadConfig", async () => {
     notifications,
     repoClient,
     config.plugins,
+    config.qlik,
     config.general.sourceWhitelist,
     config.general.logLevel,
     true
@@ -225,6 +226,7 @@ async function run() {
     notifications,
     repoClient,
     config.plugins,
+    config.qlik,
     config.general.sourceWhitelist,
     config.general.logLevel,
     false

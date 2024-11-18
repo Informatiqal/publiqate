@@ -62,6 +62,7 @@ export interface Config {
 
 export interface NotificationData {
   config: Notification;
+  environment: QlikComm
   data: [];
   entity: any[];
 }
