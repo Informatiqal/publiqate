@@ -203,13 +203,27 @@ function removeDisabled(config: Config) {
   );
 
   config.notifications = config.notifications.map((n) => {
-    n.callbacks = n.callbacks.filter(
-      (c) => !c.hasOwnProperty("enabled") || c.enabled == true
-    );
-    return n;
+    if (n.callbacks) {
+      n.callbacks = n.callbacks.filter(
+        (c) => !c.hasOwnProperty("enabled") || c.enabled == true
+      );
+      return n;
+    }
   });
 
-  //TODO: log warning that notification is removed because of 0 callbacks
+  config.notifications = config.notifications.filter((n) => n != undefined);
+
+  //log notifications that will not be used (removed)
+  try {
+    [
+      ...new Set(config.notifications.filter((n) => n.callbacks.length == 0)),
+    ].map((n) =>
+      logger.warning(
+        `Notification "${n.name}" wont be used because all its callbacks are disabled or dont have callbacks defined`
+      )
+    );
+  } catch (e) {}
+
   // if there is not active callbacks then remove the notification
   config.notifications = config.notifications.filter(
     (n) => n.callbacks.length > 0
