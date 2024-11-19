@@ -35,24 +35,42 @@ let plugins: {
 let logLevel = "info";
 let environments = [] as unknown as QlikComm[];
 
-const corsOptions = {
-  origin: "",
-};
-
 const notificationsRouter = express.Router();
 
 function checkWhitelisting(req: Request, res: Response, next: NextFunction) {
-  const regEx = new RegExp(
-    /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/gim
-  );
+  const notificationId = req.params["notificationId"];
+  const notification = configNotifications[notificationId];
 
-  const regExResult = regEx.exec(req.headers.origin);
-  const origin = regExResult[1] ? regExResult[1] : "";
-
-  if (corsOptions.origin.toLowerCase() != origin.toLowerCase()) {
-    res.status(403).send();
-  } else {
+  if (!notification) {
     next();
+  } else {
+    if (notification.options.enabled == false) {
+      next();
+    } else {
+      const regEx = new RegExp(
+        /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/gim
+      );
+
+      const regExResult = regEx.exec(req.headers.origin);
+      const origin = regExResult[1] ? regExResult[1] : "";
+
+      const envOrigin = environments.filter(
+        (e) => notification.environment == e.name
+      )[0].host;
+
+      const allowedOrigins = [
+        ...envOrigin,
+        ...notification.options.whitelist.map((o) => o.toLowerCase()),
+      ];
+
+      if (notification.options.disableCors == true) {
+        next();
+      } else if (!allowedOrigins.includes(origin)) {
+        res.status(403).send();
+      } else {
+        next();
+      }
+    }
   }
 }
 
@@ -114,7 +132,7 @@ function initRoutes() {
         entity: [],
       };
 
-      if (notification.getEntityDetails == false) {
+      if (notification.options.getEntityDetails == false) {
         relay(notificationData);
         return;
       }
@@ -174,14 +192,13 @@ export async function initNotifications(
   apiClient: { [k: string]: QlikRepoApi.client },
   config: Config["plugins"],
   qlikEnvironments: QlikComm[],
-  qlikHost: string,
+  // qlikHost: string,
   generalLogLevel: string,
   isReload: boolean
 ) {
   configNotifications = notifications;
   repoClient = apiClient;
   pluginsConfig = config;
-  corsOptions.origin = qlikHost;
   environments = qlikEnvironments;
   if (generalLogLevel) logLevel = generalLogLevel;
 
@@ -256,8 +273,15 @@ async function loadPlugins() {
 }
 
 function relay(b: NotificationData) {
+  const activeCallbacks = b.config.callbacks.filter((c) => {
+    if (c.hasOwnProperty("enabled") && c.enabled == true) return true;
+    if (!c.hasOwnProperty("enabled")) return true;
+
+    return false;
+  });
+
   return Promise.all(
-    b.config.callback.map((c) => plugins[c.type](c, b, pluginLoggers[c.type]))
+    activeCallbacks.map((c) => plugins[c.type](c, b, pluginLoggers[c.type]))
   ).catch((e) => {
     logger.error(e.message);
   });

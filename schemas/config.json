@@ -17,9 +17,6 @@
                 "certs": {
                     "type": "string"
                 },
-                "sourceWhitelist": {
-                    "type": "string"
-                },
                 "logLevel": {
                     "type": "string",
                     "enum": [
@@ -133,7 +130,6 @@
         },
         "notifications": {
             "type": "array",
-            "minItems": 1,
             "items": {
                 "type": "object",
                 "properties": {
@@ -189,10 +185,27 @@
                     "propertyName": {
                         "type": "string"
                     },
-                    "getEntityDetails": {
-                        "type": "boolean"
+                    "options": {
+                        "type": "object",
+                        "properties": {
+                            "getEntityDetails": {
+                                "type": "boolean"
+                            },
+                            "disableCors": {
+                                "type": "boolean"
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            },
+                            "whitelist": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
                     },
-                    "callback": {
+                    "callbacks": {
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -200,13 +213,17 @@
                                 "type": {
                                     "type": "string"
                                 },
+                                "enabled": {
+                                    "type": "boolean"
+                                },
                                 "details": {
                                     "type": "object",
                                     "additionalProperties": true
                                 }
                             },
                             "required": [
-                                "type"
+                                "type",
+                                "details"
                             ]
                         }
                     }
@@ -216,8 +233,7 @@
                     "name",
                     "environment",
                     "id",
-                    "changeType",
-                    "callback"
+                    "changeType"
                 ],
                 "additionalProperties": false
             }
@@ -225,8 +241,7 @@
     },
     "required": [
         "general",
-        "qlik",
-        "notifications"
+        "qlik"
     ],
     "definitions": {
         "tasks": {

@@ -14,7 +14,6 @@ export interface CookieSecret {
 export interface GeneralConfig {
   port: number;
   uri: string;
-  sourceWhitelist: string;
   certs: string;
   logLevel: LogLevels;
   vars?: string;
@@ -34,9 +33,15 @@ export interface Notification {
   condition?: string;
   changeType: NotificationChangeType;
   propertyName?: string;
-  getEntityDetails?: boolean;
-  callback: {
+  options?: {
+    getEntityDetails?: boolean;
+    disableCors?: boolean;
+    enabled?: boolean;
+    whitelist?: string[];
+  };
+  callbacks: {
     type: string;
+    enabled?: boolean;
     details: any;
   }[];
 }
@@ -62,7 +67,7 @@ export interface Config {
 
 export interface NotificationData {
   config: Notification;
-  environment: QlikComm
+  environment: QlikComm;
   data: [];
   entity: any[];
 }

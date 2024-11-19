@@ -64,7 +64,7 @@ apiEmitter.on("reloadConfig", async () => {
 
   notifications = {};
 
-  let configDetails = await prepareAndValidateConfig();
+  let configDetails = await prepareAndValidateConfig(logger);
 
   config = configDetails.config;
   notifications = configDetails.notifications;
@@ -77,7 +77,6 @@ apiEmitter.on("reloadConfig", async () => {
     repoClient,
     config.plugins,
     config.qlik,
-    config.general.sourceWhitelist,
     config.general.logLevel,
     true
   );
@@ -185,9 +184,6 @@ async function createQlikNotifications(port: number) {
 
       if (notification.filter) notificationData["filter"] = notification.filter;
 
-      if (!notification.hasOwnProperty("getEntityDetails"))
-        notification.getEntityDetails = true;
-
       return repoClient[notification.environment].notification
         .create(notificationData)
         .then((e) => {
@@ -204,7 +200,7 @@ async function createQlikNotifications(port: number) {
 async function run() {
   logger.info("Starting...");
 
-  let configDetails = await prepareAndValidateConfig();
+  let configDetails = await prepareAndValidateConfig(logger);
 
   config = configDetails.config;
   notifications = configDetails.notifications;
@@ -227,7 +223,6 @@ async function run() {
     repoClient,
     config.plugins,
     config.qlik,
-    config.general.sourceWhitelist,
     config.general.logLevel,
     false
   );

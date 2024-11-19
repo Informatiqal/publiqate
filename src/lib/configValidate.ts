@@ -6,6 +6,9 @@ import Ajv, { ValidateFunction } from "ajv";
 
 import { Config, Notification } from "../interfaces";
 import { randomUUID } from "crypto";
+import { Logger } from "winston";
+
+let logger = {} as Logger;
 
 export async function readAndParseConfig() {
   if (!fs.existsSync(".\\config.yaml"))
@@ -13,6 +16,31 @@ export async function readAndParseConfig() {
 
   let configRaw = fs.readFileSync(".\\config.yaml").toString();
   let config = yaml.load(configRaw) as Config;
+
+  const defaultOptions = {
+    getEntityDetails: true,
+    enabled: true,
+    disableCors: false,
+    whitelist: [],
+  };
+
+  config.notifications.map((notification) => {
+    if (!notification.hasOwnProperty("options")) {
+      notification["options"] = defaultOptions;
+    } else {
+      notification.options = { ...defaultOptions, ...notification.options };
+    }
+  });
+
+  config = removeDisabled(config);
+
+  if (config.notifications.length == 0)
+    logger.warning("0 active notifications");
+
+  // re-set the raw config once the default options are set
+  configRaw = JSON.stringify(config);
+
+  logger.debug(configRaw);
 
   if (config.general.vars) {
     if (!fs.existsSync(config.general.vars))
@@ -80,7 +108,8 @@ export async function validateConfig() {
   return { valid, validate, config, configRaw, missingEnv };
 }
 
-export async function prepareAndValidateConfig() {
+export async function prepareAndValidateConfig(log: Logger) {
+  logger = log;
   const { valid, validate, config, configRaw, missingEnv } =
     await validateConfig();
 
@@ -165,4 +194,26 @@ function getMissingEnvironment(config: Config) {
   return notificationEnv
     .map((b1) => (qlikEnv.includes(b1) ? true : b1))
     .filter((b1) => b1 != true);
+}
+
+// remove disabled notifications and callbacks
+function removeDisabled(config: Config) {
+  config.notifications = config.notifications.filter(
+    (n) => n.options.enabled == true
+  );
+
+  config.notifications = config.notifications.map((n) => {
+    n.callbacks = n.callbacks.filter(
+      (c) => !c.hasOwnProperty("enabled") || c.enabled == true
+    );
+    return n;
+  });
+
+  //TODO: log warning that notification is removed because of 0 callbacks
+  // if there is not active callbacks then remove the notification
+  config.notifications = config.notifications.filter(
+    (n) => n.callbacks.length > 0
+  );
+
+  return config;
 }
