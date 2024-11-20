@@ -222,9 +222,32 @@
                                 }
                             },
                             "required": [
-                                "type",
-                                "details"
-                            ]
+                                "type"
+                            ],
+                            "additionalProperties": false,
+                            "if": {
+                                "properties": {
+                                    "type": {
+                                        "oneOf": [
+                                            {
+                                                "const": "echo"
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            "then": {
+                                "not": {
+                                    "required": [
+                                        "details"
+                                    ]
+                                }
+                            },
+                            "else": {
+                                "required": [
+                                    "details"
+                                ]
+                            }
                         }
                     }
                 },
