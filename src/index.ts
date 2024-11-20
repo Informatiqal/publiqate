@@ -39,6 +39,29 @@ process.on("unhandledRejection", (reason) => {
   });
 });
 
+process.on("SIGINT", () => {
+  logger.info("SIGINT. Stopping");
+  flushLogs();
+  new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    process.exit(1);
+  });
+});
+
+process.on("SIGQUIT", () => {
+  logger.info("SIGQUIT. Stopping");
+  flushLogs();
+  new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    process.exit(1);
+  });
+});
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM. Stopping");
+  flushLogs();
+  new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    process.exit(1);
+  });
+});
+
 const args = process.argv;
 const options = {
   uuid: {

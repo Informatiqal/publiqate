@@ -212,19 +212,11 @@
                             "properties": {
                                 "type": {
                                     "type": "string"
-                                },
-                                "enabled": {
-                                    "type": "boolean"
-                                },
-                                "details": {
-                                    "type": "object",
-                                    "additionalProperties": true
                                 }
                             },
                             "required": [
                                 "type"
                             ],
-                            "additionalProperties": false,
                             "if": {
                                 "properties": {
                                     "type": {
@@ -237,13 +229,22 @@
                                 }
                             },
                             "then": {
-                                "not": {
-                                    "required": [
-                                        "details"
-                                    ]
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
                                 }
                             },
                             "else": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    },
+                                    "details": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                    }
+                                },
                                 "required": [
                                     "details"
                                 ]
