@@ -33,10 +33,19 @@ apiRouter.use(
 apiRouter.get("/reload-config", async (req: Request, res: Response) => {
   const { valid, validate } = await validateConfig();
 
-  if (valid == false)
-    return res.status(500).json({ valid, errors: validate?.errors || [] });
-
   adminLogger.info("Received config reload");
+
+  if (valid == false || (validate.errors && validate.errors?.length > 0)) {
+    adminLogger.warning(
+      `Config reload aborted. Config errors: ${JSON.stringify({
+        valid,
+        errors: validate?.errors || [],
+      })}`
+    );
+
+    return res.status(400).json({ valid, errors: validate?.errors || [] });
+  }
+
   apiEmitter.emit("reloadConfig");
   res.status(200).send();
 });

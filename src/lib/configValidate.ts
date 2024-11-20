@@ -37,6 +37,8 @@ export async function readAndParseConfig() {
   if (config.notifications.length == 0)
     logger.warning("0 active notifications");
 
+  const duplicateID = getDuplicateNotificationID(config);
+
   // re-set the raw config once the default options are set
   configRaw = JSON.stringify(config);
 
@@ -72,11 +74,11 @@ export async function readAndParseConfig() {
     config = yaml.load(configRaw) as Config;
   }
 
-  return { config, configRaw };
+  return { config, configRaw, duplicateID };
 }
 
 export async function validateConfig() {
-  const { config, configRaw } = await readAndParseConfig();
+  const { config, configRaw, duplicateID } = await readAndParseConfig();
 
   const ajv = new Ajv({
     allErrors: true,
@@ -92,7 +94,7 @@ export async function validateConfig() {
   );
 
   const validate: ValidateFunction<unknown> = ajv.compile(configSchema);
-  const valid = validate(config);
+  let valid = validate(config);
 
   const missingEnv = getMissingEnvironment(config);
   if (missingEnv.length > 0) {
@@ -100,17 +102,31 @@ export async function validateConfig() {
       validate.errors = [];
     }
 
+    valid = false;
+
     (validate.errors as any).push({
       message: `Missing Qlik environment(s): ${missingEnv.join(",")}`,
     });
   }
 
-  return { valid, validate, config, configRaw, missingEnv };
+  if (duplicateID.length > 0) {
+    if (!validate.errors) {
+      validate.errors = [];
+    }
+
+    valid = false;
+
+    (validate.errors as any).push({
+      message: `Duplicate notification ID: ${duplicateID.join(",")}`,
+    });
+  }
+
+  return { valid, validate, config, configRaw, missingEnv, duplicateID };
 }
 
 export async function prepareAndValidateConfig(log: Logger) {
   logger = log;
-  const { valid, validate, config, configRaw, missingEnv } =
+  const { valid, validate, config, configRaw, missingEnv, duplicateID } =
     await validateConfig();
 
   if (!valid) {
@@ -120,6 +136,9 @@ export async function prepareAndValidateConfig(log: Logger) {
 
   if (missingEnv.length > 0)
     throw new Error(`Missing Qlik environment(s): ${missingEnv.join(",")}`);
+
+  if (duplicateID.length > 0)
+    throw new Error(`Duplicate notification ID: ${duplicateID.join(",")}`);
 
   const notifications = {} as { [k: string]: Notification };
 
@@ -230,4 +249,22 @@ function removeDisabled(config: Config) {
   );
 
   return config;
+}
+
+function getDuplicateNotificationID(config: Config) {
+  const result = config.notifications
+    .map((n) => n.id)
+    .reduce((obj: { [k: string]: number }, notificationId) => {
+      obj[notificationId] = obj[notificationId] ? obj[notificationId] + 1 : 1;
+
+      return obj;
+    }, {});
+
+  let duplicateId = [];
+
+  Object.entries(result).map(([key, value]) => {
+    if (value > 1) duplicateId.push(key);
+  });
+
+  return duplicateId;
 }

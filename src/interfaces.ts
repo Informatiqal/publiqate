@@ -42,7 +42,7 @@ export interface Notification {
   callbacks: {
     type: string;
     enabled?: boolean;
-    details: any;
+    details?: any;
   }[];
 }
 
