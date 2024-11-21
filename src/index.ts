@@ -54,6 +54,7 @@ process.on("SIGQUIT", () => {
     process.exit(1);
   });
 });
+
 process.on("SIGTERM", () => {
   logger.info("SIGTERM. Stopping");
   flushLogs();

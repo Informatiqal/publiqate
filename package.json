@@ -1,6 +1,6 @@
 {
   "name": "notifiqation",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "",
   "author": {
     "email": "info@informatiqal.com",
@@ -57,7 +57,7 @@
     "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-typescript": "^12.1.1",
     "@types/express": "^5.0.0",
-    "@types/node": "^22.9.0",
+    "@types/node": "^22.9.1",
     "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",
     "cookie-parser": "^1.4.7",

@@ -1,3 +1,4 @@
+import querystring from "node:querystring";
 import express, { NextFunction, Request, Response } from "express";
 import {
   Config,
@@ -38,7 +39,7 @@ let environments = [] as unknown as QlikComm[];
 const notificationsRouter = express.Router();
 
 function checkWhitelisting(req: Request, res: Response, next: NextFunction) {
-  const notificationId = req.params["notificationId"];
+  const notificationId = querystring.unescape(req.params["notificationId"]);
   const notification = configNotifications[notificationId];
 
   if (!notification) {
@@ -79,7 +80,7 @@ function initRoutes() {
     "/callback/:notificationId",
     checkWhitelisting,
     async (req: Request, res: Response) => {
-      const notificationId = req.params["notificationId"];
+      const notificationId = querystring.unescape(req.params["notificationId"]);
       const notification = configNotifications[notificationId];
 
       try {
