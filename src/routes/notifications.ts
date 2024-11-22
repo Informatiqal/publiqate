@@ -130,7 +130,7 @@ function initRoutes() {
           (e) => e.name == notification.environment
         )[0],
         data: req.body,
-        entity: [],
+        entities: [],
       };
 
       if (notification.options.getEntityDetails == false) {
@@ -171,7 +171,7 @@ function initRoutes() {
             return [];
           });
 
-        notificationData.entity = entities || [];
+        notificationData.entities = entities || [];
 
         relay(notificationData);
       } catch (e) {

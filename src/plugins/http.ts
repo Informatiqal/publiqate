@@ -58,7 +58,7 @@ export async function implementation(
       method: c.details.method,
       body: JSON.stringify({
         data: n.data,
-        entities: n.entity,
+        entities: n.entities,
       }),
       headers,
     })

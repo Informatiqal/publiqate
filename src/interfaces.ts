@@ -69,7 +69,7 @@ export interface NotificationData {
   config: Notification;
   environment: QlikComm;
   data: [];
-  entity: any[];
+  entities: any[];
 }
 
 export interface Plugin {
