@@ -41,9 +41,36 @@ export function implementation(callback, notification, logger) {
   config: {}, // full notification config (from the config file)
   environment: {}, // Qlik env details (from the config file)
   data: [], // the notification data
-  entity: [] // full Qlik entity data that raised the notification
+  entities: [] // full Qlik entities data that raised the notification
 }
 ```
+
+`notification.data` have the same structure for all notifications:
+
+```json
+"data": [
+    {
+        "changeType": 2,
+        "objectType": "ExecutionResult",
+        "objectID": "a5852393-6d0c-4842-9ddf-3c49b1bd3446",
+        "changedProperties": [
+            "modifiedDate",
+            "stopTime",
+            "duration"
+        ],
+        "engineID": "",
+        "engineType": "",
+        "originatorNodeID": "6b3a6fa8-6f3d-4211-9823-75976a88623d",
+        "originatorHostName": "some-host-name.com",
+        "originatorContextID": null,
+        "createdDate": "2024-11-19T07:37:20.031Z",
+        "modifiedDate": "2024-11-19T07:37:20.156Z",
+        "schemaPath": "ExternalChangeInfo"
+    }
+]
+```
+
+`notification.entities` property structure depends on what entity has triggered the notification. List of all entities and their structure can be seen on Qlik's [Repository API reference page](https://help.qlik.com/en-US/sense-developer/May2024/APIs/RepositoryServiceAPI/index.html#Methods)
 
 ## Config
 
@@ -57,7 +84,7 @@ Config the general behavior of `notifiQation`
 general:
   port: # on which port notifiqation will receive the notifications
   uri: "192.168.137.1"
-  certs: # path to pem certificates if need the qlik -> notifiqation comms to be https. Only valid certificates!
+  certs: # path to pem certificates if we need the qlik -> notifiqation comms to be https. Only valid certificates! If the certificate is not valid for some reason (self-signed for example) Qlik is not sending the notification!
   logLevel: # log levels: debug, info, error, warning, crit. Default is info
   vars: # check the "Config variables" section
   admin:
@@ -149,4 +176,6 @@ Variables can be used for any property of the config file.
 
 ## Installation
 
-TBA
+In the future the package will be published into `npm` but for now the way to install it is to clone the repo and run `npm install` and then `npm run build` from the folder where the clone is.
+
+Also in the near future there will be a section here that describes how to install the package as a Windows service.
