@@ -1,10 +1,10 @@
-# notifiQation
+# Publiqate
 
-`notifiQation` is an extendable notification handler for Qlik Sense (QSEoW).
+`Publiqate` is an extendable notification handler for Qlik Sense (QSEoW).
 
 QSEoW have [Notification API](https://help.qlik.com/en-US/sense-developer/May2024/Subsystems/RepositoryServiceAPI/Content/Sense_RepositoryServiceAPI/RepositoryServiceAPI-Notification-Create-Change-Subscription.htm) which can call specific URL when specified events are raised (like tasks failures, node/services down, any entity creation/deletion/update etc).
 
-`notifiQation` abstracts the notifications registration and maintenance. It allows you to describe the notifications in yaml file and it will take care of the rest.
+`Publiqate` abstracts the notifications registration and maintenance. It allows you to describe the notifications in yaml file and it will take care of the rest.
 
 ## Plugins
 
@@ -14,11 +14,11 @@ QSEoW have [Notification API](https://help.qlik.com/en-US/sense-developer/May202
 
 - `http` - send the notification data to a specified url (POST request)
 - `file` - write the notification data into a file (json. Each notification on a new line)
-- `echo` - just logs the notification data into the `notifiQation` logs
+- `echo` - just logs the notification data into the `Publiqate` logs
 
 ### Custom plugins
 
-`notifiQation` can load custom build plugins. The plugins should export a single JS function (`implementation`) and `notifiQation` will pass the data to it. The plugins can utilize whatever packages are needed and to be build to a ESM package (ideally into a single file).
+`Publiqate` can load custom build plugins. The plugins should export a single JS function (`implementation`) and `Publiqate` will pass the data to it. The plugins can utilize whatever packages are needed and to be build to a ESM package (ideally into a single file).
 
 The very basic plugin:
 
@@ -78,13 +78,13 @@ Config is separated in 4 sections:
 
 ### General
 
-Config the general behavior of `notifiQation`
+Config the general behavior of `Publiqate`
 
 ```yaml
 general:
-  port: # on which port notifiqation will receive the notifications
+  port: # on which port Publiqate will receive the notifications
   uri: "192.168.137.1"
-  certs: # path to pem certificates if we need the qlik -> notifiqation comms to be https. Only valid certificates! If the certificate is not valid for some reason (self-signed for example) Qlik is not sending the notification!
+  certs: # path to pem certificates if we need the qlik -> Publiqate comms to be https. Only valid certificates! If the certificate is not valid for some reason (self-signed for example) Qlik is not sending the notification!
   logLevel: # log levels: debug, info, error, warning, crit. Default is info
   vars: # check the "Config variables" section
   admin:
@@ -97,7 +97,7 @@ general:
 
 ### Qlik
 
-Multiple Qlik instances can be defined. When `notifiqation` starts it will connect to all of them and will create the required notifications.
+Multiple Qlik instances can be defined. When `Publiqate` starts it will connect to all of them and will create the required notifications.
 
 ```yaml
 qlik:
@@ -138,7 +138,7 @@ notifications:
         - my-link.com
         - 192.168.0.1
       enabled: # true or false. If false then when Qlik sends the notification nothing will be triggered here
-      getEntityDetails: # if true notifiqation will retrieve full entity details from Qlik
+      getEntityDetails: # if true Publiqate will retrieve full entity details from Qlik
     callbacks: # what to do when notification is received. Multiple callbacks can be triggered for single notification.
       - type: http # the name of the plugin
         details: # details associated with the plugin

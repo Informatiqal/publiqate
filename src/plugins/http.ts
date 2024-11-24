@@ -6,6 +6,7 @@ import { Logger } from "winston";
 export const meta = {
   author: "Informatiqal",
   version: "0.1.0",
+  name: "http"
 };
 
 export async function implementation(

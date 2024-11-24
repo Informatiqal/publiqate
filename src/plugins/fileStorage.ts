@@ -6,6 +6,7 @@ import path from "path";
 export const meta = {
   author: "Informatiqal",
   version: "0.1.0",
+  name: "file",
 };
 
 export async function implementation(

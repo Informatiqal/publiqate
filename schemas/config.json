@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
-    "title": "JSON Schema for Notifiqation config file",
-    "description": "Notifiqation config JSON schema (@informatiqal)",
+    "title": "JSON Schema for Publiqate config file",
+    "description": "Publiqate config JSON schema (@informatiqal)",
     "type": "object",
     "additionalProperties": false,
     "properties": {
@@ -102,30 +102,7 @@
         "plugins": {
             "type": "array",
             "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "path": {
-                        "type": "string"
-                    },
-                    "logLevel": {
-                        "type": "string",
-                        "enum": [
-                            "crit",
-                            "error",
-                            "warning",
-                            "info",
-                            "debug"
-                        ]
-                    }
-                },
-                "required": [
-                    "name",
-                    "path"
-                ],
-                "additionalProperties": false
+                "type": "string"
             }
         },
         "notifications": {

@@ -22,7 +22,7 @@ import winston from "winston";
 
 let configNotifications = {} as { [k: string]: Notification };
 let repoClient = {} as { [k: string]: QlikRepoApi.client };
-let pluginsConfig = [] as Config["plugins"];
+let pluginsConfig: string[] = [];
 let pluginLoggers: {
   [k: string]: winston.Logger;
 } = {};
@@ -239,11 +239,28 @@ async function loadPlugins() {
     await Promise.all(
       pluginsConfig.map(async (plugin) => {
         try {
-          const p: Plugin = await import(`file:///${plugin.path}`);
+          const p: Plugin = await import(`file:///${plugin}`);
 
-          plugins[plugin.name] = p.implementation;
+          if (!p.meta)
+            throw new Error(
+              `Plugin meta property not exported. Loading plugin from ${plugin}`
+            );
+
+          if (!p.meta.name)
+            throw new Error(
+              `Plugin "meta.name" property not defined. Loading plugin from ${plugin}`
+            );
+
+          if (plugins[p.meta.name])
+            throw new Error(
+              `Plugin with name "${p.meta.name}" already registered. Loading plugin from ${plugin}`
+            );
+
+          plugins[p.meta.name] = p.implementation;
           logger.info(
-            `External plugin "${plugin.name}" loaded from "${plugin.path}"`
+            `External plugin "${
+              p.meta.name
+            }" loaded from "${plugin}" with meta ${JSON.stringify(p.meta)}`
           );
 
           const localLogger = winston.createLogger({
@@ -259,13 +276,13 @@ async function loadPlugins() {
               )
             ),
             defaultMeta: {
-              service: plugin.name,
+              service: p.meta.name,
             },
           });
 
-          pluginLoggers[plugin.name] = localLogger;
+          pluginLoggers[p.meta.name] = localLogger;
         } catch (e) {
-          logger.error(`Error while loading plugin from ${plugin.path}`);
+          logger.error(`Error while loading plugin from ${plugin}`);
           throw new Error(e);
         }
       })

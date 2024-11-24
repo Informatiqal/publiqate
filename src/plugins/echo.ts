@@ -4,6 +4,7 @@ import winston from "winston";
 export const meta = {
   author: "Informatiqal",
   version: "0.1.0",
+  name: "echo",
 };
 
 export async function implementation(

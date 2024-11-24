@@ -58,11 +58,7 @@ export interface Config {
   general: GeneralConfig;
   qlik: QlikComm[];
   notifications: Notification[];
-  plugins: {
-    name: string;
-    path: string;
-    logLevel?: LogLevels;
-  }[];
+  plugins: string[];
 }
 
 export interface NotificationData {
@@ -77,6 +73,7 @@ export interface Plugin {
     version?: string;
     author?: string;
     description?: string;
+    name: string;
   };
   implementation: (
     c: any,

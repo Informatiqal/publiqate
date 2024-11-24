@@ -3,8 +3,8 @@
         "changetype",
         "cmds",
         "eventlog",
-        "Notifiqation",
         "Odag",
-        "Positionals"
+        "Positionals",
+        "Publiqate"
     ]
 }
