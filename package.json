@@ -1,5 +1,5 @@
 {
-  "name": "publiqate",
+  "name": "@informatiqal/publiqate",
   "version": "1.0.0",
   "description": "",
   "author": {
@@ -40,7 +40,8 @@
     "!tsconfig.json",
     "!tsconfig.test.json",
     "!renovate.json",
-    "!Notes.md"
+    "!Notes.md",
+    "!TEST.json"
   ],
   "repository": {
     "type": "git",
