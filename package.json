@@ -7,6 +7,10 @@
     "name": "Informatiqal @informatiqal",
     "url": "https://informatiqal.com"
   },
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "main": "dist/index.js",
   "module": "dist/index.js",
