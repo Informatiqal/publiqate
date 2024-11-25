@@ -114,8 +114,8 @@ Define list with plugins to be loaded.
 
 ```yaml
 plugins:
-  - name: # plugin name
-    path: # full path to the js file with the plugin code
+  - c:\path\to\plugin\index.js
+  - c:\path\to\another\plugin\index.js
 ```
 
 ### Notifications
@@ -160,9 +160,9 @@ user_password=my-secret-password
 
 ```yaml
 general:
----
+...
 vars: c:\path\to\variables.txt
----
+...
 callbacks:
   - type: smtp
     details:
