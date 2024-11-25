@@ -41,7 +41,8 @@
     "!tsconfig.test.json",
     "!renovate.json",
     "!Notes.md",
-    "!TEST.json"
+    "!TEST.json",
+    "!.npmrc"
   ],
   "repository": {
     "type": "git",
