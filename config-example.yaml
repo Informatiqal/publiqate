@@ -37,7 +37,7 @@ notifications:
         - ${source_whitelist_2}
       enabled: false # notifications can be disabled if needed
       getEntityDetails: true # if "true" include the entity details within the event. Default is true 
-    callback:
+    callbacks:
       # http plugin is built-in
       - type: http
         details:
@@ -50,7 +50,7 @@ notifications:
     id: 111111111-2222-3333-4444-55555555555
     filter: name eq 'Some stream name'
     changeType: update
-    callback:
+    callbacks:
       # echo plugin is built-in. It just output to the log file
       - type: echo
         disabled: true # callbacks can be disabled if needed
