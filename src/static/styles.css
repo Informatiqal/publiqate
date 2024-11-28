@@ -44,3 +44,13 @@ action {
 action > div {
   cursor: pointer;
 }
+
+input {
+  font-size: 20px;
+  min-width: 400px;
+}
+
+.delete-notification {
+  display: flex;
+  gap: 20px;
+}

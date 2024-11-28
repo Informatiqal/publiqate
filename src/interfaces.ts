@@ -27,6 +27,7 @@ export interface GeneralConfig {
 export interface Notification {
   type: NotificationObjectType;
   id: string;
+  handle?: string;
   environment: string;
   name?: string;
   filter?: string;

@@ -88,33 +88,12 @@ function initRoutes() {
         res.status(200).send();
       } catch (e) {}
 
+      // if the notification is not found then ignore it
       if (!notification) {
-        // if the notification is not found then remove it
-        // its one of ours but seems that it no longer exists
-        // and its not needed anymore
-        try {
-          repoClient[notification.environment].notification
-            .remove({
-              handle: notificationId,
-            })
-            .then((r) => {
-              logger.info(
-                [
-                  `Received notification with ID: "${notificationId}". `,
-                  `This ID dont exists in the config (anymore?). `,
-                  `Because of this the specific notification is de-registered from Qlik`,
-                ].join("")
-              );
-            })
-            .catch((e) => {
-              logger.warning(
-                `Error while deleting notification with ID: ${notificationId}`
-              );
-              logger.warning(e);
-            });
-        } catch (e) {
-          //
-        }
+        logger.debug(
+          `Received notification with ID: "${notificationId}". This ID dont exists in the config (anymore?)`
+        );
+
         return;
       }
 
@@ -128,8 +107,8 @@ function initRoutes() {
       // usually this is to exclude notifications which where changed (modifiedDate)
       // but the required property was not changed. Its a Qlik thingy
       if (notification.hasOwnProperty("propertyName")) {
-        req.body = req.body.filter(
-          (n) => n.changedProperties.includes(notification.propertyName)
+        req.body = req.body.filter((n) =>
+          n.changedProperties.includes(notification.propertyName)
         );
       }
 

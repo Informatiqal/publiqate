@@ -1,3 +1,4 @@
+import querystring from "node:querystring";
 import express, { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import { EventEmitter } from "node:events";
@@ -67,6 +68,16 @@ apiRouter.get("/verify-config", async (req: Request, res: Response) => {
 
   res.status(200).send({ valid, errors: validate?.errors || [] });
 });
+
+apiRouter.delete(
+  "/delete-notification/:notificationId",
+  async (req: Request, res: Response) => {
+    const notificationId = querystring.unescape(req.params["notificationId"]);
+
+    apiEmitter.emit("deleteNotification", notificationId);
+    res.status(204).send();
+  }
+);
 
 function setCookieSecret(cookeConfig: CookieSecret) {
   cookieSecret = cookeConfig;

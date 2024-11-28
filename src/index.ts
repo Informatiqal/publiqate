@@ -83,6 +83,11 @@ if (values["uuid"]) {
   process.exit(0);
 }
 
+let config = {} as Config;
+let notifications = {} as { [k: string]: Notification };
+let repoClient = {} as { [k: string]: QlikRepoApi.client };
+let port = 0;
+
 apiEmitter.on("reloadConfig", async () => {
   logger.info("Reloading config started");
 
@@ -113,10 +118,36 @@ apiEmitter.on("reloadConfig", async () => {
   logger.info("Reloading config finished");
 });
 
-let config = {} as Config;
-let notifications = {} as { [k: string]: Notification };
-let repoClient = {} as { [k: string]: QlikRepoApi.client };
-let port = 0;
+apiEmitter.on("deleteNotification", async (notificationId) => {
+  try {
+    const notification = notifications[notificationId];
+
+    if (notification) {
+      const repo = repoClient[notification.environment];
+
+      await repo.notification
+        .remove({
+          handle: notification.handle,
+        })
+        .then((r) => {
+          logger.info(
+            `Notification ID ${notificationId} with handle ${notification.handle} was de-registered`
+          );
+
+          // once the notification is removed from Qlik
+          // then remove it from the list with the notifications as well
+          delete notifications[notificationId];
+        })
+        .catch((e) => {
+          logger.error(
+            `Failed to de-register notification ${notificationId}. Error: ${e}`
+          );
+        });
+    }
+  } catch (e) {
+    logger.error(e);
+  }
+});
 
 async function prepareRepoClients() {
   config.qlik.map((q) => {
@@ -214,8 +245,9 @@ async function createQlikNotifications(port: number) {
       return repoClient[notification.environment].notification
         .create(notificationData)
         .then((e) => {
+          notification.handle = e;
           logger.info(
-            `Notification "${notification.name}" registered. ID: ${id}`
+            `Notification "${notification.name}" registered. ID: ${id} and Qlik handle: ${e}`
           );
 
           logger.debug(`Create notification response from Qlik: ${e}`);
