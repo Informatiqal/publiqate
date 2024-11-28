@@ -208,6 +208,9 @@ async function createQlikNotifications(port: number) {
 
       if (notification.filter) notificationData["filter"] = notification.filter;
 
+      if (notification.propertyName)
+        notificationData["propertyname"] = notification.propertyName;
+
       return repoClient[notification.environment].notification
         .create(notificationData)
         .then((e) => {

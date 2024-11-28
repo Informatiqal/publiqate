@@ -88,10 +88,10 @@ function initRoutes() {
         res.status(200).send();
       } catch (e) {}
 
-      // if the notification is not found then remove it
-      // its one of ours but seems that it no longer exists
-      // and its not needed anymore
       if (!notification) {
+        // if the notification is not found then remove it
+        // its one of ours but seems that it no longer exists
+        // and its not needed anymore
         try {
           repoClient[notification.environment].notification
             .remove({
@@ -115,7 +115,6 @@ function initRoutes() {
         } catch (e) {
           //
         }
-
         return;
       }
 
@@ -123,6 +122,20 @@ function initRoutes() {
       req.body = req.body.filter((value, index, self) => {
         return self.findIndex((v) => v.id === value.id) === index;
       });
+
+      // if the notification should be for a specific entity property
+      // filter the body and exclude data which is not including that property
+      // usually this is to exclude notifications which where changed (modifiedDate)
+      // but the required property was not changed. Its a Qlik thingy
+      if (notification.hasOwnProperty("propertyName")) {
+        req.body = req.body.filter(
+          (n) => n.changedProperties.includes(notification.propertyName)
+        );
+      }
+
+      // after all filtering if there is no data left then
+      // just return and do not try to do anything more
+      if (req.body.length == 0) return;
 
       const notificationData: NotificationData = {
         config: notification,
@@ -291,7 +304,7 @@ async function loadPlugins() {
 }
 
 function relay(b: NotificationData) {
-  const activeCallbacks = b.config.callbacks.filter((c) => {
+  let activeCallbacks = b.config.callbacks.filter((c) => {
     if (c.hasOwnProperty("enabled") && c.enabled == true) return true;
     if (!c.hasOwnProperty("enabled")) return true;
 
