@@ -2,8 +2,11 @@ import querystring from "node:querystring";
 import express, { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import { EventEmitter } from "node:events";
-import { adminLogger } from "../lib/logger";
-import { validateConfig } from "../lib/configValidate";
+import { adminLogger, logger } from "../lib/logger";
+import {
+  prepareAndValidateConfig,
+  validateConfig,
+} from "../lib/configValidate";
 import { CookieSecret } from "../interfaces";
 
 const apiEmitter = new EventEmitter();
@@ -31,7 +34,7 @@ apiRouter.use(
 );
 
 //@ts-ignore
-apiRouter.get("/reload-config", async (req: Request, res: Response) => {
+apiRouter.get("/config/reload", async (req: Request, res: Response) => {
   const { valid, validate } = await validateConfig();
 
   adminLogger.info("Received config reload");
@@ -51,7 +54,7 @@ apiRouter.get("/reload-config", async (req: Request, res: Response) => {
   res.status(200).send();
 });
 
-apiRouter.get("/verify-config", async (req: Request, res: Response) => {
+apiRouter.get("/config/verify", async (req: Request, res: Response) => {
   const { valid, validate } = await validateConfig();
   adminLogger.info(
     `Verification complete with ${
@@ -70,7 +73,7 @@ apiRouter.get("/verify-config", async (req: Request, res: Response) => {
 });
 
 apiRouter.delete(
-  "/delete-notification/:notificationId",
+  "/notification/:notificationId",
   async (req: Request, res: Response) => {
     const notificationId = querystring.unescape(req.params["notificationId"]);
 
@@ -78,6 +81,20 @@ apiRouter.delete(
     res.status(204).send();
   }
 );
+
+apiRouter.get("/notification/list", async (req: Request, res: Response) => {
+  try {
+    const config = await prepareAndValidateConfig(logger);
+
+    const ids = Object.keys(config.notifications);
+
+    res.contentType("application/json");
+    res.status(200).send(ids);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).send();
+  }
+});
 
 function setCookieSecret(cookeConfig: CookieSecret) {
   cookieSecret = cookeConfig;

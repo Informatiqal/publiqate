@@ -1,24 +1,39 @@
 import querystring from "node:querystring";
+import WebSocket from "ws";
 import express, { NextFunction, Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
 import {
   Config,
   Plugin,
   Notification,
   NotificationData,
   QlikComm,
+  NotificationRepo,
+  NotificationDataAlert,
+  DataAlertCondition,
+  DataAlertFieldSelection,
+  DataAlertScalarCondition,
+  DataAlertBookmarkApply,
+  LogLevels,
 } from "../interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
+import * as enigma from "enigma.js";
+import { docMixin } from "enigma-mixin";
+import * as enigmaSchema from "enigma.js/schemas/12.1657.0.json" assert { type: "json" };
 
 import {
   logger,
   createPluginLogger,
   fileTransport,
-  defaultLevel,
+  logLevels,
+  qlikCommsLogger,
 } from "../lib/logger";
 import * as httpPlugin from "../plugins/http";
 import * as echoPlugin from "../plugins/echo";
 import * as fileStorage from "../plugins/fileStorage";
 import winston from "winston";
+import { App } from "qlik-repo-api/dist/App";
+import { readFileSync } from "fs";
 
 let configNotifications = {} as { [k: string]: Notification };
 let repoClient = {} as { [k: string]: QlikRepoApi.client };
@@ -33,7 +48,7 @@ let plugins: {
     logger: winston.Logger
   ) => Promise<any>;
 } = {};
-let logLevel = "info";
+let logLevel = logLevels;
 let environments = [] as unknown as QlikComm[];
 
 const notificationsRouter = express.Router();
@@ -102,73 +117,10 @@ function initRoutes() {
         return self.findIndex((v) => v.id === value.id) === index;
       });
 
-      // if the notification should be for a specific entity property
-      // filter the body and exclude data which is not including that property
-      // usually this is to exclude notifications which where changed (modifiedDate)
-      // but the required property was not changed. Its a Qlik thingy
-      if (notification.hasOwnProperty("propertyName")) {
-        req.body = req.body.filter((n) =>
-          n.changedProperties.includes(notification.propertyName)
-        );
-      }
-
-      // after all filtering if there is no data left then
-      // just return and do not try to do anything more
-      if (req.body.length == 0) return;
-
-      const notificationData: NotificationData = {
-        config: notification,
-        environment: environments.filter(
-          (e) => e.name == notification.environment
-        )[0],
-        data: req.body,
-        entities: [],
-      };
-
-      if (notification.options.getEntityDetails == false) {
-        relay(notificationData);
-        return;
-      }
-
-      try {
-        const objectType = `${req.body[0].objectType
-          .split("")[0]
-          .toLowerCase()}${req.body[0].objectType.substring(
-          1,
-          req.body[0].objectType.length
-        )}s`;
-
-        const entities = await Promise.all(
-          req.body.map((entity) => {
-            if (objectType == "executionResults") {
-              return repoClient[notification.environment][objectType]
-                .get({
-                  id: entity.objectID,
-                })
-                .then((execResult) => {
-                  return repoClient[notification.environment].tasks.get({
-                    id: execResult.details.taskID,
-                  });
-                });
-            } else {
-              return repoClient[notification.environment][objectType].get({
-                id: entity.objectID,
-              });
-            }
-          })
-        )
-          .then((ent) => ent.map((e) => e.details))
-          .catch((e) => {
-            logger.error(e);
-            return [];
-          });
-
-        notificationData.entities = entities || [];
-
-        relay(notificationData);
-      } catch (e) {
-        logger.error(`${JSON.stringify(notificationData)}`);
-        logger.error(e);
+      if (notification.type == "DataAlert") {
+        processDataAlertNotification(notification, req);
+      } else {
+        processRepoNotification(notification, req);
       }
     }
   );
@@ -186,14 +138,14 @@ export async function initNotifications(
   config: Config["plugins"],
   qlikEnvironments: QlikComm[],
   // qlikHost: string,
-  generalLogLevel: string,
+  generalLogLevel: LogLevels,
   isReload: boolean
 ) {
   configNotifications = notifications;
   repoClient = apiClient;
   pluginsConfig = config;
   environments = qlikEnvironments;
-  if (generalLogLevel) logLevel = generalLogLevel;
+  // if (generalLogLevel) logLevel = generalLogLevel;
 
   // clear all existing (if any) loggers
   Object.entries(pluginLoggers).map(([name, logger]) => {
@@ -209,19 +161,24 @@ export async function initNotifications(
 
 function loadBuiltinPlugins() {
   // http plugin
-  pluginLoggers["http"] = createPluginLogger("http", logLevel);
+  const httpLogLevel = logLevels["http"] || logLevels.plugins;
+  pluginLoggers["http"] = createPluginLogger("http", httpLogLevel);
   plugins["http"] = httpPlugin.implementation;
-  logger.info(`Built-in plugin "http" loaded`);
+  logger.info(`Built-in plugin "http" loaded with log level "${httpLogLevel}"`);
 
   // echo plugin
-  pluginLoggers["echo"] = createPluginLogger("echo", logLevel);
+  const echoLogLevel = logLevels["echo"] || logLevels.plugins;
+  pluginLoggers["echo"] = createPluginLogger("echo", echoLogLevel);
   plugins["echo"] = echoPlugin.implementation;
-  logger.info(`Built-in plugin "echo" loaded`);
+  logger.info(`Built-in plugin "echo" loaded with log level "${echoLogLevel}"`);
 
   // file store plugin
-  pluginLoggers["file"] = createPluginLogger("file", logLevel);
+  const fileLogLevel = logLevels["file"] || logLevels.plugins;
+  pluginLoggers["file"] = createPluginLogger("file", fileLogLevel);
   plugins["file"] = fileStorage.implementation;
-  logger.info(`Built-in plugin "file" loaded`);
+  logger.info(
+    `Built-in plugin "file" loaded  with log level "${fileLogLevel}"`
+  );
 }
 
 async function loadPlugins() {
@@ -249,16 +206,13 @@ async function loadPlugins() {
             );
 
           plugins[p.meta.name] = p.implementation;
-          logger.info(
-            `External plugin "${
-              p.meta.name
-            }" loaded from "${plugin}" with meta ${JSON.stringify(p.meta)}`
-          );
+
+          const logLevel = logLevels[p.meta.name] || logLevels.plugins;
 
           const localLogger = winston.createLogger({
             transports: [new winston.transports.Console(), fileTransport],
             levels: winston.config.syslog.levels,
-            level: defaultLevel,
+            level: logLevel,
             format: winston.format.combine(
               winston.format.timestamp(),
               winston.format.printf(
@@ -271,6 +225,14 @@ async function loadPlugins() {
               service: p.meta.name,
             },
           });
+
+          logger.info(
+            `External plugin "${
+              p.meta.name
+            }" loaded from "${plugin}" with meta ${JSON.stringify(
+              p.meta
+            )} and log level "${logLevel}"`
+          );
 
           pluginLoggers[p.meta.name] = localLogger;
         } catch (e) {
@@ -295,6 +257,322 @@ function relay(b: NotificationData) {
   ).catch((e) => {
     logger.error(e.message);
   });
+}
+
+async function processDataAlertNotification(
+  notification: Notification,
+  req: Request
+) {
+  if (!notification.filter) {
+    logger.error(`No filter specified for notification ${notification.id}`);
+
+    return;
+  }
+
+  const app: App[] = await repoClient[notification.environment].apps.getFilter({
+    filter: notification.filter,
+  });
+
+  if (app.length > 1 || app.length == 0) {
+    logger.error(
+      `Data alert filter should return only one app. Returned ${app.length}`
+    );
+
+    return;
+  }
+
+  const updatedProperties = req.body.filter((n) =>
+    n.changedProperties.includes("lastReloadTime")
+  );
+
+  if (updatedProperties.length != 1) return;
+
+  const qlikEnv = environments.filter(
+    (e) => notification.environment == e.name
+  )[0];
+
+  const engineUserConnections: {
+    [user: string]: {
+      conditions: DataAlertCondition[];
+      connection: enigmaJS.ISession;
+    };
+  } = {};
+
+  (notification as NotificationDataAlert)["data-conditions"].map((dc) => {
+    // if no options or options.user is missing
+    // then set to INTERNAL\sa_scheduler as a default connection user
+    const user = !dc.options
+      ? "INTERNAL\\sa_scheduler"
+      : !dc.options.user
+      ? "INTERNAL\\sa_scheduler"
+      : dc.options.user;
+
+    if (!engineUserConnections[user])
+      engineUserConnections[user] = {
+        conditions: [],
+        connection: {} as enigmaJS.ISession,
+      };
+
+    engineUserConnections[user].conditions.push(dc);
+  });
+
+  const cert = readFileSync(`${qlikEnv.certs}\\client.pem`);
+  const key = readFileSync(`${qlikEnv.certs}\\client_key.pem`);
+
+  // prepare the Engine connections/sessions
+  Object.keys(engineUserConnections).map(async (user) => {
+    const [userDir, userName] = user.split("\\");
+
+    const enigmaConfig: enigmaJS.IConfig = {
+      Promise: Promise,
+      schema: enigmaSchema,
+      mixins: [...docMixin],
+      url: `wss://${qlikEnv.host}:4747/${
+        app[0].details.id
+      }/identity/${+new Date()}`,
+      createSocket: (url) =>
+        new WebSocket(url, {
+          //@ts-ignore
+          key,
+          cert,
+          rejectUnauthorized: false,
+          headers: {
+            "X-Qlik-User": `UserDirectory=${encodeURIComponent(
+              userDir
+            )};UserId=${encodeURIComponent(userName)}`,
+          },
+        }),
+    };
+
+    const enigmaClass = (enigma as any).default as IEnigmaClass;
+    const session = enigmaClass.create(enigmaConfig);
+
+    engineUserConnections[user].connection = session;
+  });
+
+  Object.entries(engineUserConnections).map(async ([user, details]) => {
+    const session = engineUserConnections[user].connection;
+    const conditions = details.conditions;
+
+    try {
+      try {
+        session["publiqateId"] = uuidv4();
+        const global = (await session.open()) as EngineAPI.IGlobal;
+        qlikCommsLogger.debug(
+          `${session["publiqateId"]}|Connection established for notification ${notification.id}`
+        );
+
+        const doc = await global.openDoc(app[0].details.id);
+        qlikCommsLogger.debug(
+          `${session["publiqateId"]}|App ${app[0].details.id} open with user ${user}`
+        );
+
+        let overallConditionResults = true;
+
+        await Promise.all(
+          conditions.map(async (condition) => {
+            await Promise.all(
+              condition.conditions.map(async (c) => {
+                const scalarCondition =
+                  c as unknown as DataAlertScalarCondition;
+                await makeQlikSelections(
+                  doc,
+                  condition.selections || [],
+                  session["publiqateId"]
+                );
+                const conditionResult = await evaluateCondition(
+                  doc,
+                  scalarCondition,
+                  session["publiqateId"]
+                );
+
+                overallConditionResults =
+                  overallConditionResults && conditionResult;
+              })
+            );
+          })
+        );
+
+        logger.info(
+          [
+            `${session["publiqateId"]}|`,
+            `All conditions for app ${app[0].details.id} `,
+            `with user ${user} `,
+            `for notification ${notification.id} were processed. `,
+            `The overall evaluation result is "${overallConditionResults}"`,
+          ].join("")
+        );
+      } catch (e) {
+        logger.error(
+          `${session["publiqateId"]}|QIX comms error for notification ${notification.id} and user ${user}`
+        );
+        logger.error(e);
+      }
+      session.close().then((r) => {
+        qlikCommsLogger.debug(
+          `${session["publiqateId"]}|Session for app ${app[0].details.id} opened with user ${user} is closed`
+        );
+      });
+    } catch (e) {
+      // try and close the session in case of an issue
+      session.close().catch(e);
+
+      logger.error(
+        `${session["publiqateId"]}|General QIX comms error for notification ${notification.id} and user ${user}`
+      );
+      logger.error(e);
+    }
+  });
+}
+
+async function processRepoNotification(
+  notification: Notification,
+  req: Request
+) {
+  // if the notification should be for a specific entity property
+  // filter the body and exclude data which is not including that property
+  // usually this is to exclude notifications which where changed (modifiedDate)
+  // but the required property was not changed. Its a Qlik thingy
+  if (notification.hasOwnProperty("propertyName")) {
+    req.body = req.body.filter((n) =>
+      n.changedProperties.includes(
+        (notification as NotificationRepo).propertyName
+      )
+    );
+  }
+
+  // after all filtering if there is no data left then
+  // just return and do not try to do anything more
+  if (req.body.length == 0) return;
+
+  const notificationData: NotificationData = {
+    config: notification,
+    environment: environments.filter(
+      (e) => e.name == notification.environment
+    )[0],
+    data: req.body,
+    entities: [],
+  };
+
+  if ((notification as NotificationRepo).options.getEntityDetails == false) {
+    relay(notificationData);
+    return;
+  }
+
+  try {
+    const objectType = `${req.body[0].objectType
+      .split("")[0]
+      .toLowerCase()}${req.body[0].objectType.substring(
+      1,
+      req.body[0].objectType.length
+    )}s`;
+
+    const entities = await Promise.all(
+      req.body.map((entity) => {
+        if (objectType == "executionResults") {
+          return repoClient[notification.environment][objectType]
+            .get({
+              id: entity.objectID,
+            })
+            .then((execResult) => {
+              return repoClient[notification.environment].tasks.get({
+                id: execResult.details.taskID,
+              });
+            });
+        } else {
+          return repoClient[notification.environment][objectType].get({
+            id: entity.objectID,
+          });
+        }
+      })
+    )
+      .then((ent) => ent.map((e) => e.details))
+      .catch((e) => {
+        logger.error(e);
+        return [];
+      });
+
+    notificationData.entities = entities || [];
+
+    relay(notificationData);
+  } catch (e) {
+    logger.error(`${JSON.stringify(notificationData)}`);
+    logger.error(e);
+  }
+}
+
+async function makeQlikSelections(
+  doc: EngineAPI.IApp,
+  selections: (DataAlertFieldSelection | DataAlertBookmarkApply)[],
+  sessionId: string
+) {
+  qlikCommsLogger.debug(`${sessionId}|Clear all`);
+  await doc.clearAll(false);
+
+  return await Promise.all(
+    selections.map(async (selection) => {
+      if (selection.hasOwnProperty("bookmark")) {
+        await doc.applyBookmark(selection["bookmark"]);
+        qlikCommsLogger.debug(`Bookmark applied "${selection["bookmark"]}"`);
+      } else {
+        await doc.mSelectInField(
+          (selection as DataAlertFieldSelection).field,
+          (selection as DataAlertFieldSelection).values
+        );
+
+        qlikCommsLogger.debug(
+          `Selections in field "${
+            (selection as DataAlertFieldSelection).field
+          }" applied: ${(selection as DataAlertFieldSelection).values.join(
+            ", "
+          )}`
+        );
+      }
+    })
+  );
+}
+
+async function evaluateCondition(
+  doc: EngineAPI.IApp,
+  condition: DataAlertScalarCondition,
+  sessionId: string
+) {
+  const evalExResult = await doc.evaluateEx(condition.expression);
+
+  let evalEx: string | number = 0;
+
+  if (
+    evalExResult.hasOwnProperty("qIsNumeric") &&
+    evalExResult.qIsNumeric == true
+  ) {
+    evalEx = evalExResult.qNumber;
+  } else {
+    evalEx = evalExResult.qText;
+  }
+
+  //TODO: print more debug messages?
+  logger.debug(
+    [
+      `${sessionId}|`,
+      `"${condition.name}" condition evaluated. `,
+      `Result is "${evalEx}"`,
+    ].join("")
+  );
+
+  let comparisonResults = true;
+
+  condition.results.map((c) => {
+    comparisonResults = comparisonResults && evalEx == c.value;
+    logger.debug(
+      `${sessionId}|Evaluation result "${evalEx}" is compared to "${c.value}"`
+    );
+  });
+
+  logger.debug(
+    `${sessionId}|Conditions processed. The result is "${comparisonResults}"`
+  );
+
+  return comparisonResults;
 }
 
 export { notificationsRouter };

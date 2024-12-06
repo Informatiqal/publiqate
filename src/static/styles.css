@@ -33,7 +33,7 @@ main-content {
 
 actions {
   display: grid;
-  grid-template-rows: 30px auto;
+  grid-template-rows: 30px 30px 30px 30px;
   gap: 10px;
 }
 

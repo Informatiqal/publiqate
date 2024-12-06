@@ -209,6 +209,7 @@ async function createQlikNotifications(port: number) {
     "SchedulerService",
     "ServerNodeConfiguration",
     "VirtualProxyConfig",
+    "DataAlert",
   ];
 
   const callbackURLProtocol = config.general.certs ? "https" : "http";
@@ -221,37 +222,56 @@ async function createQlikNotifications(port: number) {
           `Notification type "${notification.type}" is not valid value`
         );
 
-      if (!changeTypes[notification.changeType.toLowerCase()])
-        throw new Error(
-          `changeType "${notification.changeType}" is not valid value`
-        );
+      if (notification.type != "DataAlert") {
+        if (!changeTypes[notification.changeType.toLowerCase()])
+          throw new Error(
+            `changeType "${notification.changeType}" is not valid value`
+          );
+      }
 
       const notificationData = {
-        name: notification.type,
+        name: "",
+        changeType: "",
         uri: `${callbackBaseURL}/notifications/callback/${id}`,
       };
 
-      notificationData["changeType"] =
-        changeTypes[notification.changeType.toLowerCase()];
+      if (notification.type != "DataAlert") {
+        if (notification.hasOwnProperty("condition"))
+          notificationData["condition"] = notification["condition"];
 
-      if (notification.condition)
-        notificationData["condition"] = notification.condition;
+        if (notification.hasOwnProperty("propertyName"))
+          notificationData["propertyname"] = notification["propertyName"];
+
+        notificationData.name = notification.type;
+        notificationData.changeType =
+          changeTypes[notification.changeType.toLowerCase()];
+      } else {
+        if (!notification.hasOwnProperty("filter"))
+          logger.crit(
+            `DataAlert notification should have filter property. Notification ID: ${notification.id}`
+          );
+
+        notificationData.name = "App";
+        notificationData.changeType = "2";
+      }
 
       if (notification.filter) notificationData["filter"] = notification.filter;
 
-      if (notification.propertyName)
-        notificationData["propertyname"] = notification.propertyName;
+      return (
+        repoClient[notification.environment].notification
+          // have to ignore that one. The DataAlert is not valid Repo value
+          // its replaced with App above anyway
+          //@ts-ignore
+          .create(notificationData)
+          .then((e) => {
+            notification.handle = e;
+            logger.info(
+              `Notification "${notification.name}" registered. ID: ${id} with Qlik handle: ${e}`
+            );
 
-      return repoClient[notification.environment].notification
-        .create(notificationData)
-        .then((e) => {
-          notification.handle = e;
-          logger.info(
-            `Notification "${notification.name}" registered. ID: ${id} and Qlik handle: ${e}`
-          );
-
-          logger.debug(`Create notification response from Qlik: ${e}`);
-        });
+            logger.debug(`Create notification response from Qlik: ${e}`);
+          })
+      );
     })
   );
 }
@@ -337,39 +357,50 @@ function startWebServer(port: number) {
     });
   }
 
-  // Admin https server below
-  const adminApp = express();
-  adminApp.use(express.urlencoded({ extended: true }));
-  adminApp.use(express.json());
-  adminApp.use("/static", express.static(path.join(__dirname, "./static")));
-  adminApp.use("/admin", adminRouter);
-  adminApp.use("/api", apiRouter);
+  if (config.general.admin !== false) {
+    try {
+      // Admin https server below
+      const adminApp = express();
+      adminApp.use(express.urlencoded({ extended: true }));
+      adminApp.use(express.json());
+      adminApp.use("/static", express.static(path.join(__dirname, "./static")));
+      adminApp.use("/admin", adminRouter);
+      adminApp.use("/api", apiRouter);
 
-  setCookieSecret(config.general.admin.cookie);
+      setCookieSecret(config.general.admin.cookie);
 
-  const adminPort = config.general.admin.port || 8099;
+      const adminPort = config.general.admin.port || 8099;
 
-  const adminPrivateKey = fs.readFileSync(
-    `${config.general.admin.certs}/key.pem`,
-    "utf8"
-  );
-  const adminCertificate = fs.readFileSync(
-    `${config.general.admin.certs}/cert.pem`,
-    "utf8"
-  );
-  const httpsAdminServer = https.createServer(
-    {
-      key: adminPrivateKey,
-      cert: adminCertificate,
-    },
-    adminApp
-  );
+      const adminPrivateKey = fs.readFileSync(
+        `${config.general.admin.certs}/key.pem`,
+        "utf8"
+      );
+      const adminCertificate = fs.readFileSync(
+        `${config.general.admin.certs}/cert.pem`,
+        "utf8"
+      );
+      const httpsAdminServer = https.createServer(
+        {
+          key: adminPrivateKey,
+          cert: adminCertificate,
+        },
+        adminApp
+      );
 
-  logger.debug(`Admin Certificates loaded from ${config.general.certs}`);
+      logger.debug(`Admin Certificates loaded from ${config.general.certs}`);
 
-  httpsAdminServer.listen(adminPort, () => {
-    adminLogger.info(`Admin HTTPS web server is running on port ${adminPort}`);
-  });
+      httpsAdminServer.listen(adminPort, () => {
+        adminLogger.info(
+          `Admin HTTPS web server is running on port ${adminPort}`
+        );
+      });
+    } catch (e) {
+      logger.error("Admin UI and API failed to load");
+      logger.error(e);
+    }
+  } else {
+    logger.info("Admin UI and API endpoints are disabled in the config");
+  }
 }
 
 run();

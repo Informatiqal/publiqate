@@ -3,12 +3,13 @@
         "outDir": "./dist",
         "target": "ES2017",
         "declaration": true,
-        "module": "ES2020",
+        "module": "ESNext",
         "noImplicitAny": false,
         "sourceMap": true,
         "moduleResolution": "node",
         "allowSyntheticDefaultImports": true,
-        "allowJs": true
+        "allowJs": true,
+        "resolveJsonModule": true,
     },
     "include": [
         "src/**/*"

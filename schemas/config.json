@@ -6,68 +6,203 @@
     "additionalProperties": false,
     "properties": {
         "general": {
-            "type": "object",
-            "properties": {
-                "port": {
-                    "type": "integer"
-                },
-                "uri": {
-                    "type": "string"
-                },
-                "certs": {
-                    "type": "string"
-                },
-                "logLevel": {
-                    "type": "string",
-                    "enum": [
-                        "debug",
-                        "info",
-                        "error"
-                    ]
-                },
-                "vars": {
-                    "type": "string",
-                    "description": "Location to file where secrets are stored"
-                },
-                "admin": {
+            "oneOf": [
+                {
                     "type": "object",
                     "properties": {
-                        "cookie": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                                "value": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "name",
-                                "value"
-                            ],
-                            "additionalProperties": false
+                        "port": {
+                            "type": "integer"
+                        },
+                        "uri": {
+                            "type": "string"
                         },
                         "certs": {
                             "type": "string"
                         },
-                        "port": {
-                            "type": "number"
+                        "logLevel": {
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "debug",
+                                        "info",
+                                        "error"
+                                    ]
+                                },
+                                {
+                                    "type": "object",
+                                    "required": [
+                                        "core"
+                                    ],
+                                    "properties": {
+                                        "core": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        },
+                                        "admin": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        },
+                                        "qlik": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        }
+                                    },
+                                    "additionalProperties": {
+                                        "type": "string",
+                                        "enum": [
+                                            "debug",
+                                            "info",
+                                            "error"
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "vars": {
+                            "type": "string",
+                            "description": "Location to file where secrets are stored"
+                        },
+                        "admin": {
+                            "type": "object",
+                            "properties": {
+                                "cookie": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "name",
+                                        "value"
+                                    ],
+                                    "additionalProperties": false
+                                },
+                                "certs": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": "number"
+                                }
+                            },
+                            "required": [
+                                "cookie",
+                                "certs"
+                            ],
+                            "additionalProperties": false
                         }
                     },
                     "required": [
-                        "cookie",
-                        "certs"
+                        "port",
+                        "uri",
+                        "admin"
+                    ],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "port": {
+                            "type": "integer"
+                        },
+                        "uri": {
+                            "type": "string"
+                        },
+                        "certs": {
+                            "type": "string"
+                        },
+                        "logLevel": {
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "enum": [
+                                        "debug",
+                                        "info",
+                                        "error"
+                                    ]
+                                },
+                                {
+                                    "type": "object",
+                                    "required": [
+                                        "core"
+                                    ],
+                                    "properties": {
+                                        "core": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        },
+                                        "admin": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        },
+                                        "qlik": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        },
+                                        "plugins": {
+                                            "type": "string",
+                                            "enum": [
+                                                "debug",
+                                                "info",
+                                                "error"
+                                            ]
+                                        }
+                                    },
+                                    "additionalProperties": {
+                                        "type": "string",
+                                        "enum": [
+                                            "debug",
+                                            "info",
+                                            "error"
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "admin": {
+                            "const": false
+                        },
+                        "vars": {
+                            "type": "string",
+                            "description": "Location to file where secrets are stored"
+                        }
+                    },
+                    "required": [
+                        "port",
+                        "uri",
+                        "admin"
                     ],
                     "additionalProperties": false
                 }
-            },
-            "required": [
-                "port",
-                "uri",
-                "admin"
-            ],
-            "additionalProperties": false
+            ]
         },
         "qlik": {
             "type": "array",
@@ -108,148 +243,425 @@
         "notifications": {
             "type": "array",
             "items": {
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "App",
-                            "AnalyticConnection",
-                            "ContentLibrary",
-                            "DataConnection",
-                            "Extension",
-                            "ExecutionResult",
-                            "ReloadTask",
-                            "Stream",
-                            "User",
-                            "UserSyncTask",
-                            "SystemRule",
-                            "Tag",
-                            "CustomPropertyDefinition",
-                            "EngineService",
-                            "OdagService",
-                            "PrintingService",
-                            "ProxyService",
-                            "RepositoryService",
-                            "SchedulerService",
-                            "ServerNodeConfiguration",
-                            "VirtualProxyConfig"
-                        ]
-                    },
-                    "environment": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "changeType": {
-                        "type": "string",
-                        "enum": [
-                            "add",
-                            "update",
-                            "delete"
-                        ]
-                    },
-                    "filter": {
-                        "type": "string"
-                    },
-                    "condition": {
-                        "type": "string"
-                    },
-                    "propertyName": {
-                        "type": "string"
-                    },
-                    "options": {
+                "anyOf": [
+                    {
                         "type": "object",
                         "properties": {
-                            "getEntityDetails": {
-                                "type": "boolean"
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "App",
+                                    "AnalyticConnection",
+                                    "ContentLibrary",
+                                    "DataConnection",
+                                    "Extension",
+                                    "ExecutionResult",
+                                    "ReloadTask",
+                                    "Stream",
+                                    "User",
+                                    "UserSyncTask",
+                                    "SystemRule",
+                                    "Tag",
+                                    "CustomPropertyDefinition",
+                                    "EngineService",
+                                    "OdagService",
+                                    "PrintingService",
+                                    "ProxyService",
+                                    "RepositoryService",
+                                    "SchedulerService",
+                                    "ServerNodeConfiguration",
+                                    "VirtualProxyConfig"
+                                ]
                             },
-                            "disableCors": {
-                                "type": "boolean"
+                            "environment": {
+                                "type": "string"
                             },
-                            "enabled": {
-                                "type": "boolean"
+                            "name": {
+                                "type": "string"
                             },
-                            "whitelist": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "callbacks": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "type": {
-                                    "type": "string"
-                                }
+                            "id": {
+                                "type": "string"
                             },
-                            "required": [
-                                "type"
-                            ],
-                            "if": {
+                            "changeType": {
+                                "type": "string",
+                                "enum": [
+                                    "add",
+                                    "update",
+                                    "delete"
+                                ]
+                            },
+                            "filter": {
+                                "type": "string"
+                            },
+                            "condition": {
+                                "type": "string"
+                            },
+                            "propertyName": {
+                                "type": "string"
+                            },
+                            "options": {
+                                "type": "object",
                                 "properties": {
-                                    "type": {
-                                        "oneOf": [
-                                            {
-                                                "const": "echo"
-                                            }
-                                        ]
-                                    }
-                                }
-                            },
-                            "then": {
-                                "properties": {
-                                    "enabled": {
+                                    "getEntityDetails": {
                                         "type": "boolean"
-                                    }
-                                }
-                            },
-                            "else": {
-                                "properties": {
+                                    },
+                                    "disableCors": {
+                                        "type": "boolean"
+                                    },
                                     "enabled": {
                                         "type": "boolean"
                                     },
-                                    "details": {
-                                        "type": "object",
-                                        "additionalProperties": true
+                                    "whitelist": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
                                     }
-                                },
-                                "required": [
-                                    "details"
-                                ]
+                                }
+                            },
+                            "callbacks": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "type"
+                                    ],
+                                    "if": {
+                                        "properties": {
+                                            "type": {
+                                                "oneOf": [
+                                                    {
+                                                        "const": "echo"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "then": {
+                                        "properties": {
+                                            "enabled": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    },
+                                    "else": {
+                                        "properties": {
+                                            "enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "details": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                            }
+                                        },
+                                        "required": [
+                                            "details"
+                                        ]
+                                    }
+                                }
                             }
-                        }
+                        },
+                        "required": [
+                            "type",
+                            "name",
+                            "environment",
+                            "id",
+                            "changeType"
+                        ],
+                        "additionalProperties": false
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "DataAlert"
+                                ]
+                            },
+                            "environment": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "id": {
+                                "type": "string"
+                            },
+                            "filter": {
+                                "type": "string"
+                            },
+                            "condition": {
+                                "type": "string"
+                            },
+                            "data-conditions": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "selections": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "additionalProperties": false,
+                                                        "properties": {
+                                                            "field": {
+                                                                "type": "string"
+                                                            },
+                                                            "state": {
+                                                                "type": "string"
+                                                            },
+                                                            "values": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "oneOf": [
+                                                                        {
+                                                                            "type": "string"
+                                                                        },
+                                                                        {
+                                                                            "type": "number"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "additionalProperties": false,
+                                                        "properties": {
+                                                            "bookmark": {
+                                                                "oneOf": [
+                                                                    {
+                                                                        "type": "string"
+                                                                    },
+                                                                    {
+                                                                        "type": "number"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "conditions": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "required": [
+                                                            "type",
+                                                            "fieldName",
+                                                            "values",
+                                                            "operation",
+                                                            "name"
+                                                        ],
+                                                        "additionalProperties": false,
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "description": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "list"
+                                                                ]
+                                                            },
+                                                            "fieldName": {
+                                                                "type": "string"
+                                                            },
+                                                            "values": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "operation": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "present",
+                                                                    "missing"
+                                                                ]
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "required": [
+                                                            "type",
+                                                            "results",
+                                                            "expression",
+                                                            "name"
+                                                        ],
+                                                        "additionalProperties": false,
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "description": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "scalar"
+                                                                ]
+                                                            },
+                                                            "expression": {
+                                                                "type": "string"
+                                                            },
+                                                            "results": {
+                                                                "type": "array",
+                                                                "minItems": 1,
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "required": [
+                                                                        "value"
+                                                                    ],
+                                                                    "properties": {
+                                                                        "value": {
+                                                                            "anyOf": [
+                                                                                {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                {
+                                                                                    "type": "number"
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        "operator": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "<",
+                                                                                ">",
+                                                                                ">=",
+                                                                                "<=",
+                                                                                "==",
+                                                                                "!=",
+                                                                                "=",
+                                                                                "<>"
+                                                                            ]
+                                                                        },
+                                                                        "variation": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "options": {
+                                            "type": "object",
+                                            "properties": {
+                                                "user": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "selections",
+                                        "conditions"
+                                    ]
+                                }
+                            },
+                            "options": {
+                                "type": "object",
+                                "properties": {
+                                    "getEntityDetails": {
+                                        "type": "boolean"
+                                    },
+                                    "disableCors": {
+                                        "type": "boolean"
+                                    },
+                                    "enabled": {
+                                        "type": "boolean"
+                                    },
+                                    "whitelist": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "callbacks": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "type"
+                                    ],
+                                    "if": {
+                                        "properties": {
+                                            "type": {
+                                                "oneOf": [
+                                                    {
+                                                        "const": "echo"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "then": {
+                                        "properties": {
+                                            "enabled": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    },
+                                    "else": {
+                                        "properties": {
+                                            "enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "details": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                            }
+                                        },
+                                        "required": [
+                                            "details"
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "required": [
+                            "type",
+                            "name",
+                            "environment",
+                            "id"
+                        ],
+                        "additionalProperties": false
                     }
-                },
-                "required": [
-                    "type",
-                    "name",
-                    "environment",
-                    "id",
-                    "changeType"
-                ],
-                "additionalProperties": false
+                ]
             }
         }
     },
     "required": [
         "general",
         "qlik"
-    ],
-    "definitions": {
-        "tasks": {
-            "type": "array",
-            "description": "List of tasks to be executed in sequence",
-            "minItems": 1,
-            "items": {}
-        }
-    }
+    ]
 }
