@@ -15,6 +15,7 @@ import {
   DataAlertScalarCondition,
   DataAlertBookmarkApply,
   LogLevels,
+  DataAlertListCondition,
 } from "../interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
 import * as enigma from "enigma.js";
@@ -373,21 +374,38 @@ async function processDataAlertNotification(
           conditions.map(async (condition) => {
             await Promise.all(
               condition.conditions.map(async (c) => {
-                const scalarCondition =
-                  c as unknown as DataAlertScalarCondition;
-                await makeQlikSelections(
-                  doc,
-                  condition.selections || [],
-                  session["publiqateId"]
-                );
-                const conditionResult = await evaluateCondition(
-                  doc,
-                  scalarCondition,
-                  session["publiqateId"]
-                );
+                // logger.debug(
+                //   `${session["publiqateId"]}|Processing condition "${c.name}"`
+                // );
 
-                overallConditionResults =
-                  overallConditionResults && conditionResult;
+                if (c.type == "scalar") {
+                  const scalarCondition =
+                    c as unknown as DataAlertScalarCondition;
+                  await makeQlikSelections(
+                    doc,
+                    condition.selections || [],
+                    session["publiqateId"]
+                  );
+                  const conditionResult = await evaluateScalarCondition(
+                    doc,
+                    scalarCondition,
+                    session["publiqateId"]
+                  );
+                  overallConditionResults =
+                    overallConditionResults && conditionResult;
+                }
+
+                if (c.type == "list") {
+                  const listCondition = c as unknown as DataAlertListCondition;
+                  const conditionResult = await evaluateListCondition(
+                    doc,
+                    listCondition,
+                    session["publiqateId"]
+                  );
+
+                  overallConditionResults =
+                    overallConditionResults && conditionResult;
+                }
               })
             );
           })
@@ -532,7 +550,7 @@ async function makeQlikSelections(
   );
 }
 
-async function evaluateCondition(
+async function evaluateScalarCondition(
   doc: EngineAPI.IApp,
   condition: DataAlertScalarCondition,
   sessionId: string
@@ -547,7 +565,7 @@ async function evaluateCondition(
   ) {
     evalEx = evalExResult.qNumber;
   } else {
-    evalEx = evalExResult.qText;
+    evalEx = `"${evalExResult.qText}"`;
   }
 
   //TODO: print more debug messages?
@@ -555,7 +573,7 @@ async function evaluateCondition(
     [
       `${sessionId}|`,
       `"${condition.name}" condition evaluated. `,
-      `Result is "${evalEx}"`,
+      `Result is ${evalEx}`,
     ].join("")
   );
 
@@ -563,16 +581,88 @@ async function evaluateCondition(
 
   condition.results.map((c) => {
     comparisonResults = comparisonResults && evalEx == c.value;
+
+    let evalPrefix = "";
+    let valuePrefix = "";
+
+    if (typeof evalEx == "string") {
+      evalPrefix = `"`;
+    }
+
+    if (typeof c.value == "string") {
+      valuePrefix = `"`;
+    }
+
     logger.debug(
-      `${sessionId}|Evaluation result "${evalEx}" is compared to "${c.value}"`
+      `${sessionId}|Evaluation result ${evalPrefix}${evalEx}${evalPrefix} is compared to ${valuePrefix}${c.value}${valuePrefix}`
     );
   });
 
   logger.debug(
-    `${sessionId}|Conditions processed. The result is "${comparisonResults}"`
+    `${sessionId}|Conditions "${condition.name}" processed. The result is "${comparisonResults}"`
   );
 
   return comparisonResults;
+}
+
+async function evaluateListCondition(
+  doc: EngineAPI.IApp,
+  condition: DataAlertListCondition,
+  sessionId: string
+) {
+  logger.debug(
+    `${sessionId}|Searching for matching values in "${
+      condition.fieldName
+    }". Searched values are: ${condition.values.join(",")}`
+  );
+
+  const searchResult = await Promise.all(
+    condition.values.map(async (v) => {
+      try {
+        const sessionObj = await doc.mCreateSessionListbox(condition.fieldName);
+        const searchResult = await sessionObj.obj.searchListObjectFor(
+          "/qListObjectDef",
+          v.toString()
+        );
+        const layout =
+          (await sessionObj.obj.getLayout()) as EngineAPI.IGenericListLayout;
+
+        // something went wrong with the search
+        if (searchResult == false) return false;
+
+        await doc
+          .destroySessionObject(sessionObj.props.qInfo.qId)
+          .catch((e) => {});
+
+        return layout.qListObject.qSize.qcx > 0 && layout.qListObject.qSize.qcy
+          ? true
+          : false;
+      } catch (e) {
+        logger.error(`${sessionId}|Error while performing value search. ${e}`);
+        return false;
+      }
+    })
+  );
+
+  let result = true;
+
+  if (
+    !condition.hasOwnProperty("operations") ||
+    (condition.hasOwnProperty("operations") && condition.operation == "present")
+  )
+    result = searchResult.every((v) => v === true);
+
+  if (
+    condition.hasOwnProperty("operations") &&
+    condition.operation == "missing"
+  )
+    result = searchResult.every((v) => v === false);
+
+  logger.debug(
+    `${sessionId}|Condition "${condition.name}" processed. The result is "${result}"`
+  );
+
+  return result;
 }
 
 export { notificationsRouter };
