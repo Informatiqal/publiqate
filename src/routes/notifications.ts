@@ -416,6 +416,19 @@ async function processDataAlertNotification(
             `The overall evaluation result is "${overallConditionResults}"`,
           ].join("")
         );
+
+        if (overallConditionResults == true) {
+          const notificationData: NotificationData = {
+            config: notification,
+            environment: environments.filter(
+              (e) => e.name == notification.environment
+            )[0],
+            data: req.body,
+            entities: app,
+          };
+
+          relay(notificationData);
+        }
       } catch (e) {
         logger.error(
           `${session["publiqateId"]}|QIX comms error for notification ${notification.id} and user ${user}`
@@ -527,7 +540,9 @@ async function makeQlikSelections(
     selections.map(async (selection) => {
       if (selection.hasOwnProperty("bookmark")) {
         await doc.applyBookmark(selection["bookmark"]);
-        qlikCommsLogger.debug(`${sessionId}|Bookmark applied "${selection["bookmark"]}"`);
+        qlikCommsLogger.debug(
+          `${sessionId}|Bookmark applied "${selection["bookmark"]}"`
+        );
       } else {
         await doc.mSelectInField(
           (selection as DataAlertFieldSelection).field,
