@@ -374,10 +374,6 @@ async function processDataAlertNotification(
           conditions.map(async (condition) => {
             await Promise.all(
               condition.conditions.map(async (c) => {
-                // logger.debug(
-                //   `${session["publiqateId"]}|Processing condition "${c.name}"`
-                // );
-
                 if (c.type == "scalar") {
                   const scalarCondition =
                     c as unknown as DataAlertScalarCondition;
@@ -572,7 +568,8 @@ async function evaluateScalarCondition(
   logger.debug(
     [
       `${sessionId}|`,
-      `"${condition.name}" condition evaluated. `,
+      `${condition.name}|`,
+      `Condition evaluated. `,
       `Result is ${evalEx}`,
     ].join("")
   );
@@ -580,26 +577,44 @@ async function evaluateScalarCondition(
   let comparisonResults = true;
 
   condition.results.map((c) => {
-    comparisonResults = comparisonResults && evalEx == c.value;
+    let evalPrefix = typeof evalEx == "string" ? `"` : "";
+    let valuePrefix = typeof c.value == "string" ? `"` : "";
 
-    let evalPrefix = "";
-    let valuePrefix = "";
+    if (c.variation) {
+      let { upperLimit, lowerLimit } = compareWithVariance(
+        c.variation,
+        evalEx as number
+      );
 
-    if (typeof evalEx == "string") {
-      evalPrefix = `"`;
+      const comparisonResult = inRange(c.value, lowerLimit, upperLimit);
+
+      comparisonResults = comparisonResults && comparisonResult;
+
+      logger.debug(
+        `${sessionId}|${condition.name}|Evaluation result ${evalPrefix}${evalEx}${evalPrefix} is compared to ${valuePrefix}${c.value}${valuePrefix} (${c.variation}). Result is "${comparisonResult}"`
+      );
+    } else {
+      const comparisonResult = operations[c.operator ? c.operator : "=="](
+        evalEx,
+        c.value
+      );
+
+      comparisonResults = comparisonResults && comparisonResult;
+
+      logger.debug(
+        `${sessionId}|${
+          condition.name
+        }|Evaluation result ${evalPrefix}${evalEx}${evalPrefix} is compared to ${valuePrefix}${
+          c.value
+        }${valuePrefix} (${
+          c.operator ? c.operator : "=="
+        }). Result is "${comparisonResult}"`
+      );
     }
-
-    if (typeof c.value == "string") {
-      valuePrefix = `"`;
-    }
-
-    logger.debug(
-      `${sessionId}|Evaluation result ${evalPrefix}${evalEx}${evalPrefix} is compared to ${valuePrefix}${c.value}${valuePrefix}`
-    );
   });
 
   logger.debug(
-    `${sessionId}|Conditions "${condition.name}" processed. The result is "${comparisonResults}"`
+    `${sessionId}|${condition.name}|Conditions processed. The result is "${comparisonResults}"`
   );
 
   return comparisonResults;
@@ -611,7 +626,7 @@ async function evaluateListCondition(
   sessionId: string
 ) {
   logger.debug(
-    `${sessionId}|Searching for matching values in "${
+    `${sessionId}|${condition.name}|Searching for matching values in "${
       condition.fieldName
     }". Searched values are: ${condition.values.join(",")}`
   );
@@ -638,7 +653,9 @@ async function evaluateListCondition(
           ? true
           : false;
       } catch (e) {
-        logger.error(`${sessionId}|Error while performing value search. ${e}`);
+        logger.error(
+          `${sessionId}|${condition.name}|Error while performing value search. ${e}`
+        );
         return false;
       }
     })
@@ -659,10 +676,109 @@ async function evaluateListCondition(
     result = searchResult.every((v) => v === false);
 
   logger.debug(
-    `${sessionId}|Condition "${condition.name}" processed. The result is "${result}"`
+    `${sessionId}|${condition.name}|Condition processed. The result is "${result}"`
   );
 
   return result;
+}
+
+const inRange = (num, min, max) => num >= min && num <= max;
+
+const parseNum = (str: string) => +str.replace(/[^.\d]/g, "");
+
+export const operations = {
+  ">": function (a, b) {
+    return a > b;
+  },
+  "<": function (a, b) {
+    return a < b;
+  },
+  ">=": function (a, b) {
+    return a >= b;
+  },
+  "<=": function (a, b) {
+    return a <= b;
+  },
+  "==": function (a, b) {
+    return a == b;
+  },
+  "=": function (a, b) {
+    return a == b;
+  },
+  "!=": function (a, b) {
+    return a != b;
+  },
+  "<>": function (a, b) {
+    return a != b;
+  },
+};
+
+function compareWithVariance(variance: string, resultValue: number) {
+  let comparisonValue = parseNum(variance);
+  let upperLimit: number = 0;
+  let lowerLimit: number = 0;
+
+  if (variance.includes("%")) {
+    comparisonValue = comparisonValue / 100;
+
+    if (variance.includes("+-") || variance.includes("-+")) {
+      upperLimit = resultValue * comparisonValue + resultValue;
+      lowerLimit = resultValue - resultValue * comparisonValue;
+
+      return { upperLimit, lowerLimit };
+    }
+
+    if (!variance.includes("+") && !variance.includes("-")) {
+      upperLimit = resultValue * comparisonValue + resultValue;
+      lowerLimit = upperLimit;
+
+      return { upperLimit, lowerLimit };
+    }
+
+    if (variance.includes("+") && !variance.includes("-")) {
+      upperLimit = resultValue * comparisonValue + resultValue;
+      lowerLimit = upperLimit;
+
+      return { upperLimit, lowerLimit };
+    }
+
+    if (!variance.includes("+") && variance.includes("-")) {
+      lowerLimit = resultValue - resultValue * comparisonValue;
+      upperLimit = lowerLimit;
+
+      return { upperLimit, lowerLimit };
+    }
+  }
+
+  if (!variance.includes("%")) {
+    if (variance.includes("+-") || variance.includes("-+")) {
+      upperLimit = resultValue + comparisonValue;
+      lowerLimit = resultValue - comparisonValue;
+
+      return { upperLimit, lowerLimit };
+    }
+
+    if (!variance.includes("+") && !variance.includes("-")) {
+      upperLimit = resultValue + comparisonValue;
+      lowerLimit = upperLimit;
+
+      return { upperLimit, lowerLimit };
+    }
+
+    if (variance.includes("+") && !variance.includes("-")) {
+      upperLimit = resultValue + comparisonValue;
+      lowerLimit = upperLimit;
+
+      return { upperLimit, lowerLimit };
+    }
+
+    if (!variance.includes("+") && variance.includes("-")) {
+      lowerLimit = resultValue - comparisonValue;
+      upperLimit = lowerLimit;
+
+      return { upperLimit, lowerLimit };
+    }
+  }
 }
 
 export { notificationsRouter };
