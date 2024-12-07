@@ -527,7 +527,7 @@ async function makeQlikSelections(
     selections.map(async (selection) => {
       if (selection.hasOwnProperty("bookmark")) {
         await doc.applyBookmark(selection["bookmark"]);
-        qlikCommsLogger.debug(`Bookmark applied "${selection["bookmark"]}"`);
+        qlikCommsLogger.debug(`${sessionId}|Bookmark applied "${selection["bookmark"]}"`);
       } else {
         await doc.mSelectInField(
           (selection as DataAlertFieldSelection).field,
@@ -535,7 +535,7 @@ async function makeQlikSelections(
         );
 
         qlikCommsLogger.debug(
-          `Selections in field "${
+          `${sessionId}|Selections in field "${
             (selection as DataAlertFieldSelection).field
           }" applied: ${(selection as DataAlertFieldSelection).values.join(
             ", "
@@ -686,7 +686,7 @@ const inRange = (num, min, max) => num >= min && num <= max;
 
 const parseNum = (str: string) => +str.replace(/[^.\d]/g, "");
 
-export const operations = {
+const operations = {
   ">": function (a, b) {
     return a > b;
   },
