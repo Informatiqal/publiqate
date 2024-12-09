@@ -350,17 +350,47 @@
                                         }
                                     },
                                     "else": {
-                                        "properties": {
-                                            "enabled": {
-                                                "type": "boolean"
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/definitions/html_plugin_details"
                                             },
-                                            "details": {
+                                            {
+                                                "$ref": "#/definitions/file_plugin_details"
+                                            },
+                                            {
+                                                "$ref": "#/definitions/smtp_plugin_details"
+                                            },
+                                            {
+                                                "$ref": "#/definitions/http_plugin_details"
+                                            },
+                                            {
+                                                "$ref": "#/definitions/s3_plugin_details"
+                                            },
+                                            {
                                                 "type": "object",
-                                                "additionalProperties": true
+                                                "required": [
+                                                    "type"
+                                                ],
+                                                "additionalProperties": true,
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string",
+                                                        "not": {
+                                                            "enum": [
+                                                                "file",
+                                                                "s3",
+                                                                "html",
+                                                                "smtp",
+                                                                "echo",
+                                                                "http"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "enabled": {
+                                                        "type": "boolean"
+                                                    }
+                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "details"
                                         ]
                                     }
                                 }
@@ -632,17 +662,47 @@
                                         }
                                     },
                                     "else": {
-                                        "properties": {
-                                            "enabled": {
-                                                "type": "boolean"
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/definitions/html_plugin_details"
                                             },
-                                            "details": {
+                                            {
+                                                "$ref": "#/definitions/file_plugin_details"
+                                            },
+                                            {
+                                                "$ref": "#/definitions/smtp_plugin_details"
+                                            },
+                                            {
+                                                "$ref": "#/definitions/http_plugin_details"
+                                            },
+                                            {
+                                                "$ref": "#/definitions/s3_plugin_details"
+                                            },
+                                            {
                                                 "type": "object",
-                                                "additionalProperties": true
+                                                "required": [
+                                                    "type"
+                                                ],
+                                                "additionalProperties": true,
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string",
+                                                        "not": {
+                                                            "enum": [
+                                                                "file",
+                                                                "s3",
+                                                                "html",
+                                                                "smtp",
+                                                                "echo",
+                                                                "http"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "enabled": {
+                                                        "type": "boolean"
+                                                    }
+                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "details"
                                         ]
                                     }
                                 }
@@ -663,5 +723,355 @@
     "required": [
         "general",
         "qlik"
-    ]
+    ],
+    "definitions": {
+        "html_plugin_details": {
+            "type": "object",
+            "required": [
+                "details"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "html"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "template",
+                        "path",
+                        "engine"
+                    ],
+                    "properties": {
+                        "template": {
+                            "type": "string"
+                        },
+                        "path": {
+                            "type": "string"
+                        },
+                        "engine": {
+                            "type": "string",
+                            "enum": [
+                                "ejs",
+                                "pug",
+                                "mustache",
+                                "handlebars"
+                            ]
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "smtp_plugin_auth_user_pass": {
+            "type": "object",
+            "required": [
+                "user",
+                "pass"
+            ],
+            "properties": {
+                "user": {
+                    "type": "string"
+                },
+                "pass": {
+                    "type": "string"
+                }
+            }
+        },
+        "smtp_plugin_auth_3LO": {
+            "type": "object",
+            "required": [
+                "user",
+                "clientId",
+                "clientSecret",
+                "accessToken"
+            ],
+            "properties": {
+                "user": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "clientSecret": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "accessToken": {
+                    "type": "string"
+                },
+                "expires": {
+                    "type": "string"
+                },
+                "accessUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "smtp_plugin_auth_2LO": {
+            "type": "object",
+            "required": [
+                "user",
+                "serviceClient",
+                "privateKey"
+            ],
+            "properties": {
+                "user": {
+                    "type": "string"
+                },
+                "serviceClient": {
+                    "type": "string"
+                },
+                "privateKey": {
+                    "type": "string"
+                }
+            }
+        },
+        "smtp_plugin_base_details": {
+            "type": "object",
+            "required": [
+                "host",
+                "port",
+                "from",
+                "to",
+                "subject",
+                "auth"
+            ],
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "auth": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/smtp_plugin_auth_user_pass"
+                        },
+                        {
+                            "$ref": "#/definitions/smtp_plugin_auth_3LO"
+                        },
+                        {
+                            "$ref": "#/definitions/smtp_plugin_auth_2LO"
+                        }
+                    ]
+                }
+            }
+        },
+        "smtp_plugin_details": {
+            "type": "object",
+            "required": [
+                "details"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "smtp"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "required": [
+                                "html"
+                            ],
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/smtp_plugin_base_details"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "html": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "object",
+                            "required": [
+                                "template",
+                                "engine"
+                            ],
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/smtp_plugin_base_details"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "template": {
+                                            "type": "string"
+                                        },
+                                        "engine": {
+                                            "type": "string",
+                                            "enum": [
+                                                "ejs",
+                                                "pug",
+                                                "mustache",
+                                                "handlebars"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "file_plugin_details": {
+            "type": "object",
+            "required": [
+                "details"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "file"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "path"
+                    ],
+                    "properties": {
+                        "path": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "http_plugin_details": {
+            "type": "object",
+            "required": [
+                "details"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "http"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "url"
+                    ],
+                    "properties": {
+                        "url": {
+                            "type": "string"
+                        },
+                        "method": {
+                            "type": "string",
+                            "enum": [
+                                "post",
+                                "get",
+                                "put",
+                                "delete"
+                            ]
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "s3_plugin_details": {
+            "type": "object",
+            "required": [
+                "details"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "s3"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "auth",
+                        "region",
+                        "bucket"
+                    ],
+                    "properties": {
+                        "region": {
+                            "type": "string"
+                        },
+                        "bucket": {
+                            "type": "string"
+                        },
+                        "acl": {
+                            "type": "string"
+                        },
+                        "key": {
+                            "type": "string"
+                        },
+                        "serverSideEncryption": {
+                            "type": "string"
+                        },
+                        "auth": {
+                            "type": "object",
+                            "required": [
+                                "accessKeyId",
+                                "secretAccessKey"
+                            ],
+                            "properties": {
+                                "accessKeyId": {
+                                    "type": "string"
+                                },
+                                "secretAccessKey": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        }
+    }
 }
