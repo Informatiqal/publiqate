@@ -14,9 +14,8 @@ import {
   DataAlertFieldSelection,
   DataAlertScalarCondition,
   DataAlertBookmarkApply,
-  LogLevels,
   DataAlertListCondition,
-} from "../interfaces";
+} from "../interfaces/interfaces";
 import { QlikRepoApi } from "qlik-repo-api";
 import * as enigma from "enigma.js";
 import { docMixin } from "enigma-mixin";
@@ -35,7 +34,10 @@ import * as fileStorage from "../plugins/fileStorage";
 import winston from "winston";
 import { App } from "qlik-repo-api/dist/App";
 import { readFileSync } from "fs";
+import { GeneralConfig, GeneralConfig15 } from "../interfaces/general";
+import { randomUUID } from "node:crypto";
 
+let configGeneral = {} as GeneralConfig;
 let configNotifications = {} as { [k: string]: Notification };
 let repoClient = {} as { [k: string]: QlikRepoApi.client };
 let pluginsConfig: string[] = [];
@@ -46,7 +48,7 @@ let plugins: {
   [k: string]: (
     c: any,
     d: NotificationData,
-    logger: winston.Logger
+    logger: winston.Logger,
   ) => Promise<any>;
 } = {};
 let logLevel = logLevels;
@@ -56,35 +58,91 @@ const notificationsRouter = express.Router();
 
 function checkWhitelisting(req: Request, res: Response, next: NextFunction) {
   const notificationId = querystring.unescape(req.params["notificationId"]);
+
+  const defaultNotificationOptions = {
+    ...{
+      getEntityDetails: true,
+      disableCors: true,
+      enabled: true,
+      whitelist: [],
+    },
+  };
+
   const notification = configNotifications[notificationId];
+  notification.options = {
+    ...defaultNotificationOptions,
+    ...configGeneral.notifications,
+    ...notification.options,
+  };
 
   if (!notification) {
-    next();
+    if (
+      configGeneral.deregisterMissing &&
+      configGeneral.deregisterMissing == true
+    ) {
+      //
+    }
+    // if the notification is not found then ignore it
+    logger.debug(
+      `Request received for notification "${notificationId}" but such notification was not found in the config. Ignoring it.`,
+    );
+
+    try {
+      res.status(404).send();
+    } catch (e) {}
   } else {
     if (notification.options.enabled == false) {
-      next();
+      // if the notification is not found then ignore it
+      logger.debug(
+        `Received notification with ID: "${notificationId}". The ID exists in the config but its disabled`,
+      );
+
+      try {
+        res.status(404).send();
+      } catch (e) {}
     } else {
+      req["publiqateNotification"] = notification;
+
       const regEx = new RegExp(
-        /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/gim
+        /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/gim,
       );
 
       const regExResult = regEx.exec(req.headers.origin);
       const origin = regExResult[1] ? regExResult[1] : "";
 
       const envOrigin = environments.filter(
-        (e) => notification.environment == e.name
+        (e) => notification.environment == e.name,
       )[0].host;
 
-      const allowedOrigins = [
-        ...envOrigin,
-        ...notification.options.whitelist.map((o) => o.toLowerCase()),
-      ];
+      let allowedOrigins = [...envOrigin];
+      if (notification.options && notification.options.whitelist) {
+        allowedOrigins = [
+          ...allowedOrigins,
+          ...notification.options.whitelist.map((o) => o.toLowerCase()),
+        ];
+      }
 
-      if (notification.options.disableCors == true) {
+      if (notification.options && notification.options.disableCors == true) {
+        try {
+          // respond back to Qlik that the notification is received
+          res.status(200).send();
+        } catch (e) {}
+
         next();
       } else if (!allowedOrigins.includes(origin)) {
-        res.status(403).send();
+        logger.debug(
+          `Received notification with ID: "${notificationId}". The notification exists and it is enabled but the origin dont match with the configured origins`,
+        );
+
+        try {
+          res.status(403).send();
+        } catch (e) {}
       } else {
+        try {
+          // respond back to Qlik that the notification is received
+          res.status(200).send();
+        } catch (e) {}
+
         next();
       }
     }
@@ -96,34 +154,32 @@ function initRoutes() {
     "/callback/:notificationId",
     checkWhitelisting,
     async (req: Request, res: Response) => {
-      const notificationId = querystring.unescape(req.params["notificationId"]);
-      const notification = configNotifications[notificationId];
+      // const notificationId = querystring.unescape(req.params["notificationId"]);
+      const notification = req["publiqateNotification"] as NotificationRepo;
 
-      try {
-        // respond back to Qlik that the notification is received
-        res.status(200).send();
-      } catch (e) {}
-
-      // if the notification is not found then ignore it
-      if (!notification) {
-        logger.debug(
-          `Received notification with ID: "${notificationId}". This ID dont exists in the config (anymore?)`
+      if (Object.keys(req.body).length == 0) {
+        logger.info(
+          `Received notification with ID: "${notification.nameOriginal}" but the its body is empty`,
         );
-
         return;
       }
 
       // remove duplicate notifications ... if any
       req.body = req.body.filter((value, index, self) => {
-        return self.findIndex((v) => v.id === value.id) === index;
+        // return self.findIndex((v) => v.id === value.id) === index;
+        if (value.objectID)
+          return self.findIndex((v) => v.objectID === value.objectID) === index;
+
+        if (value.id) return self.findIndex((v) => v.id === value.id) === index;
       });
 
-      if (notification.type == "DataAlert") {
+      //TODO: issue with the schema to types lib?
+      if ((notification as any).type == "DataAlert") {
         processDataAlertNotification(notification, req);
       } else {
         processRepoNotification(notification, req);
       }
-    }
+    },
   );
 
   notificationsRouter.post("/health", async (req: Request, res: Response) => {
@@ -136,16 +192,17 @@ export async function initNotifications(
     [k: string]: Notification;
   },
   apiClient: { [k: string]: QlikRepoApi.client },
-  config: Config["plugins"],
   qlikEnvironments: QlikComm[],
   // qlikHost: string,
-  generalLogLevel: LogLevels,
-  isReload: boolean
+  generalConfig: GeneralConfig,
+  isReload: boolean,
+  builtInPLugins: GeneralConfig15,
 ) {
   configNotifications = notifications;
   repoClient = apiClient;
-  pluginsConfig = config;
+  pluginsConfig = generalConfig.plugins || [];
   environments = qlikEnvironments;
+  configGeneral = generalConfig;
   // if (generalLogLevel) logLevel = generalLogLevel;
 
   // clear all existing (if any) loggers
@@ -155,35 +212,54 @@ export async function initNotifications(
   pluginLoggers = {};
   plugins = {};
 
-  await loadPlugins();
+  await loadPlugins(builtInPLugins);
 
   if (isReload == false) initRoutes();
 }
 
-function loadBuiltinPlugins() {
+function loadBuiltinPlugins(builtInPLugins: GeneralConfig15) {
   // http plugin
-  const httpLogLevel = logLevels["http"] || logLevels.plugins;
-  pluginLoggers["http"] = createPluginLogger("http", httpLogLevel);
-  plugins["http"] = httpPlugin.implementation;
-  logger.info(`Built-in plugin "http" loaded with log level "${httpLogLevel}"`);
+  if (builtInPLugins.http == true) {
+    const httpLogLevel = logLevels["http"] || logLevels.plugins;
+    pluginLoggers["http"] = createPluginLogger("http", httpLogLevel);
+    plugins["http"] = httpPlugin.implementation;
+
+    logger.info(
+      `Built-in plugin "http" loaded with log level "${httpLogLevel}"`,
+    );
+  } else {
+    logger.debug(`Built-in plugin "http" is disabled`);
+  }
 
   // echo plugin
-  const echoLogLevel = logLevels["echo"] || logLevels.plugins;
-  pluginLoggers["echo"] = createPluginLogger("echo", echoLogLevel);
-  plugins["echo"] = echoPlugin.implementation;
-  logger.info(`Built-in plugin "echo" loaded with log level "${echoLogLevel}"`);
+  if (builtInPLugins.echo == true) {
+    const echoLogLevel = logLevels["echo"] || logLevels.plugins;
+    pluginLoggers["echo"] = createPluginLogger("echo", echoLogLevel);
+    plugins["echo"] = echoPlugin.implementation;
+
+    logger.info(
+      `Built-in plugin "echo" loaded with log level "${echoLogLevel}"`,
+    );
+  } else {
+    logger.debug(`Built-in plugin "echo" is disabled`);
+  }
 
   // file store plugin
-  const fileLogLevel = logLevels["file"] || logLevels.plugins;
-  pluginLoggers["file"] = createPluginLogger("file", fileLogLevel);
-  plugins["file"] = fileStorage.implementation;
-  logger.info(
-    `Built-in plugin "file" loaded  with log level "${fileLogLevel}"`
-  );
+  if (builtInPLugins.file == true) {
+    const fileLogLevel = logLevels["file"] || logLevels.plugins;
+    pluginLoggers["file"] = createPluginLogger("file", fileLogLevel);
+    plugins["file"] = fileStorage.implementation;
+
+    logger.info(
+      `Built-in plugin "file" loaded  with log level "${fileLogLevel}"`,
+    );
+  } else {
+    logger.debug(`Built-in plugin "file" is disabled`);
+  }
 }
 
-async function loadPlugins() {
-  loadBuiltinPlugins();
+async function loadPlugins(builtInPLugins: GeneralConfig15) {
+  loadBuiltinPlugins(builtInPLugins);
 
   if (pluginsConfig && pluginsConfig.length > 0) {
     await Promise.all(
@@ -193,17 +269,17 @@ async function loadPlugins() {
 
           if (!p.meta)
             throw new Error(
-              `Plugin meta property not exported. Loading plugin from ${plugin}`
+              `Plugin meta property not exported. Loading plugin from ${plugin}`,
             );
 
           if (!p.meta.name)
             throw new Error(
-              `Plugin "meta.name" property not defined. Loading plugin from ${plugin}`
+              `Plugin "meta.name" property not defined. Loading plugin from ${plugin}`,
             );
 
           if (plugins[p.meta.name])
             throw new Error(
-              `Plugin with name "${p.meta.name}" already registered. Loading plugin from ${plugin}`
+              `Plugin with name "${p.meta.name}" already registered. Loading plugin from ${plugin}`,
             );
 
           plugins[p.meta.name] = p.implementation;
@@ -219,8 +295,8 @@ async function loadPlugins() {
               winston.format.printf(
                 ({ timestamp, level, message, service }) => {
                   return `${timestamp}\t${level.toUpperCase()}\t${service}\t${message}`;
-                }
-              )
+                },
+              ),
             ),
             defaultMeta: {
               service: p.meta.name,
@@ -231,8 +307,8 @@ async function loadPlugins() {
             `External plugin "${
               p.meta.name
             }" loaded from "${plugin}" with meta ${JSON.stringify(
-              p.meta
-            )} and log level "${logLevel}"`
+              p.meta,
+            )} and log level "${logLevel}"`,
           );
 
           pluginLoggers[p.meta.name] = localLogger;
@@ -240,13 +316,14 @@ async function loadPlugins() {
           logger.error(`Error while loading plugin from ${plugin}`);
           throw new Error(e);
         }
-      })
+      }),
     );
   }
 }
 
 function relay(b: NotificationData) {
-  let activeCallbacks = b.config.callbacks.filter((c) => {
+  const b1 = JSON.parse(replaceSpecialVariables(JSON.stringify(b)));
+  let activeCallbacks = b1.config.callbacks.filter((c) => {
     if (c.hasOwnProperty("enabled") && c.enabled == true) return true;
     if (!c.hasOwnProperty("enabled")) return true;
 
@@ -254,18 +331,22 @@ function relay(b: NotificationData) {
   });
 
   return Promise.all(
-    activeCallbacks.map((c) => plugins[c.type](c, b, pluginLoggers[c.type]))
+    activeCallbacks.map((c) => plugins[c.type](c, b1, pluginLoggers[c.type])),
   ).catch((e) => {
     logger.error(e.message);
   });
 }
 
+// d3b51017-24e8-49b5-a5fa-2086bfde7f42
+
 async function processDataAlertNotification(
   notification: Notification,
-  req: Request
+  req: Request,
 ) {
   if (!notification.filter) {
-    logger.error(`No filter specified for notification ${notification.id}`);
+    logger.error(
+      `No filter specified for notification ${notification.nameOriginal}`,
+    );
 
     return;
   }
@@ -276,20 +357,20 @@ async function processDataAlertNotification(
 
   if (app.length > 1 || app.length == 0) {
     logger.error(
-      `Data alert filter should return only one app. Returned ${app.length}`
+      `Data alert filter should return only one app. Returned ${app.length}`,
     );
 
     return;
   }
 
   const updatedProperties = req.body.filter((n) =>
-    n.changedProperties.includes("lastReloadTime")
+    n.changedProperties.includes("lastReloadTime"),
   );
 
   if (updatedProperties.length != 1) return;
 
   const qlikEnv = environments.filter(
-    (e) => notification.environment == e.name
+    (e) => notification.environment == e.name,
   )[0];
 
   const engineUserConnections: {
@@ -305,8 +386,8 @@ async function processDataAlertNotification(
     const user = !dc.options
       ? "INTERNAL\\sa_scheduler"
       : !dc.options.user
-      ? "INTERNAL\\sa_scheduler"
-      : dc.options.user;
+        ? "INTERNAL\\sa_scheduler"
+        : dc.options.user;
 
     if (!engineUserConnections[user])
       engineUserConnections[user] = {
@@ -339,7 +420,7 @@ async function processDataAlertNotification(
           rejectUnauthorized: false,
           headers: {
             "X-Qlik-User": `UserDirectory=${encodeURIComponent(
-              userDir
+              userDir,
             )};UserId=${encodeURIComponent(userName)}`,
           },
         }),
@@ -360,12 +441,12 @@ async function processDataAlertNotification(
         session["publiqateId"] = uuidv4();
         const global = (await session.open()) as EngineAPI.IGlobal;
         qlikCommsLogger.debug(
-          `${session["publiqateId"]}|Connection established for notification ${notification.id}`
+          `${session["publiqateId"]}|Connection established for notification ${notification.nameOriginal}`,
         );
 
         const doc = await global.openDoc(app[0].details.id);
         qlikCommsLogger.debug(
-          `${session["publiqateId"]}|App ${app[0].details.id} open with user ${user}`
+          `${session["publiqateId"]}|App ${app[0].details.id} open with user ${user}`,
         );
 
         let overallConditionResults = true;
@@ -380,12 +461,12 @@ async function processDataAlertNotification(
                   await makeQlikSelections(
                     doc,
                     condition.selections || [],
-                    session["publiqateId"]
+                    session["publiqateId"],
                   );
                   const conditionResult = await evaluateScalarCondition(
                     doc,
                     scalarCondition,
-                    session["publiqateId"]
+                    session["publiqateId"],
                   );
                   overallConditionResults =
                     overallConditionResults && conditionResult;
@@ -396,15 +477,15 @@ async function processDataAlertNotification(
                   const conditionResult = await evaluateListCondition(
                     doc,
                     listCondition,
-                    session["publiqateId"]
+                    session["publiqateId"],
                   );
 
                   overallConditionResults =
                     overallConditionResults && conditionResult;
                 }
-              })
+              }),
             );
-          })
+          }),
         );
 
         logger.info(
@@ -412,16 +493,16 @@ async function processDataAlertNotification(
             `${session["publiqateId"]}|`,
             `All conditions for app ${app[0].details.id} `,
             `with user ${user} `,
-            `for notification ${notification.id} were processed. `,
+            `for notification ${notification.nameOriginal} were processed. `,
             `The overall evaluation result is "${overallConditionResults}"`,
-          ].join("")
+          ].join(""),
         );
 
         if (overallConditionResults == true) {
           const notificationData: NotificationData = {
             config: notification,
             environment: environments.filter(
-              (e) => e.name == notification.environment
+              (e) => e.name == notification.environment,
             )[0],
             data: req.body,
             entities: app,
@@ -431,13 +512,13 @@ async function processDataAlertNotification(
         }
       } catch (e) {
         logger.error(
-          `${session["publiqateId"]}|QIX comms error for notification ${notification.id} and user ${user}`
+          `${session["publiqateId"]}|QIX comms error for notification ${notification.nameOriginal} and user ${user}`,
         );
         logger.error(e);
       }
       session.close().then((r) => {
         qlikCommsLogger.debug(
-          `${session["publiqateId"]}|Session for app ${app[0].details.id} opened with user ${user} is closed`
+          `${session["publiqateId"]}|Session for app ${app[0].details.id} opened with user ${user} is closed`,
         );
       });
     } catch (e) {
@@ -445,7 +526,7 @@ async function processDataAlertNotification(
       session.close().catch(e);
 
       logger.error(
-        `${session["publiqateId"]}|General QIX comms error for notification ${notification.id} and user ${user}`
+        `${session["publiqateId"]}|General QIX comms error for notification ${notification.nameOriginal} and user ${user}`,
       );
       logger.error(e);
     }
@@ -454,7 +535,7 @@ async function processDataAlertNotification(
 
 async function processRepoNotification(
   notification: Notification,
-  req: Request
+  req: Request,
 ) {
   // if the notification should be for a specific entity property
   // filter the body and exclude data which is not including that property
@@ -463,8 +544,8 @@ async function processRepoNotification(
   if (notification.hasOwnProperty("propertyName")) {
     req.body = req.body.filter((n) =>
       n.changedProperties.includes(
-        (notification as NotificationRepo).propertyName
-      )
+        (notification as NotificationRepo).propertyName,
+      ),
     );
   }
 
@@ -475,7 +556,7 @@ async function processRepoNotification(
   const notificationData: NotificationData = {
     config: notification,
     environment: environments.filter(
-      (e) => e.name == notification.environment
+      (e) => e.name == notification.environment,
     )[0],
     data: req.body,
     entities: [],
@@ -491,7 +572,7 @@ async function processRepoNotification(
       .split("")[0]
       .toLowerCase()}${req.body[0].objectType.substring(
       1,
-      req.body[0].objectType.length
+      req.body[0].objectType.length,
     )}s`;
 
     const entities = await Promise.all(
@@ -511,7 +592,7 @@ async function processRepoNotification(
             id: entity.objectID,
           });
         }
-      })
+      }),
     )
       .then((ent) => ent.map((e) => e.details))
       .catch((e) => {
@@ -531,7 +612,7 @@ async function processRepoNotification(
 async function makeQlikSelections(
   doc: EngineAPI.IApp,
   selections: (DataAlertFieldSelection | DataAlertBookmarkApply)[],
-  sessionId: string
+  sessionId: string,
 ) {
   qlikCommsLogger.debug(`${sessionId}|Clear all`);
   await doc.clearAll(false);
@@ -541,30 +622,30 @@ async function makeQlikSelections(
       if (selection.hasOwnProperty("bookmark")) {
         await doc.applyBookmark(selection["bookmark"]);
         qlikCommsLogger.debug(
-          `${sessionId}|Bookmark applied "${selection["bookmark"]}"`
+          `${sessionId}|Bookmark applied "${selection["bookmark"]}"`,
         );
       } else {
         await doc.mSelectInField(
           (selection as DataAlertFieldSelection).field,
-          (selection as DataAlertFieldSelection).values
+          (selection as DataAlertFieldSelection).values,
         );
 
         qlikCommsLogger.debug(
           `${sessionId}|Selections in field "${
             (selection as DataAlertFieldSelection).field
           }" applied: ${(selection as DataAlertFieldSelection).values.join(
-            ", "
-          )}`
+            ", ",
+          )}`,
         );
       }
-    })
+    }),
   );
 }
 
 async function evaluateScalarCondition(
   doc: EngineAPI.IApp,
   condition: DataAlertScalarCondition,
-  sessionId: string
+  sessionId: string,
 ) {
   const evalExResult = await doc.evaluateEx(condition.expression);
 
@@ -586,7 +667,7 @@ async function evaluateScalarCondition(
       `${condition.name}|`,
       `Condition evaluated. `,
       `Result is ${evalEx}`,
-    ].join("")
+    ].join(""),
   );
 
   let comparisonResults = true;
@@ -598,7 +679,7 @@ async function evaluateScalarCondition(
     if (c.variation) {
       let { upperLimit, lowerLimit } = compareWithVariance(
         c.variation,
-        evalEx as number
+        evalEx as number,
       );
 
       const comparisonResult = inRange(c.value, lowerLimit, upperLimit);
@@ -606,12 +687,12 @@ async function evaluateScalarCondition(
       comparisonResults = comparisonResults && comparisonResult;
 
       logger.debug(
-        `${sessionId}|${condition.name}|Evaluation result ${evalPrefix}${evalEx}${evalPrefix} is compared to ${valuePrefix}${c.value}${valuePrefix} (${c.variation}). Result is "${comparisonResult}"`
+        `${sessionId}|${condition.name}|Evaluation result ${evalPrefix}${evalEx}${evalPrefix} is compared to ${valuePrefix}${c.value}${valuePrefix} (${c.variation}). Result is "${comparisonResult}"`,
       );
     } else {
       const comparisonResult = operations[c.operator ? c.operator : "=="](
         evalEx,
-        c.value
+        c.value,
       );
 
       comparisonResults = comparisonResults && comparisonResult;
@@ -623,13 +704,13 @@ async function evaluateScalarCondition(
           c.value
         }${valuePrefix} (${
           c.operator ? c.operator : "=="
-        }). Result is "${comparisonResult}"`
+        }). Result is "${comparisonResult}"`,
       );
     }
   });
 
   logger.debug(
-    `${sessionId}|${condition.name}|Conditions processed. The result is "${comparisonResults}"`
+    `${sessionId}|${condition.name}|Conditions processed. The result is "${comparisonResults}"`,
   );
 
   return comparisonResults;
@@ -638,12 +719,12 @@ async function evaluateScalarCondition(
 async function evaluateListCondition(
   doc: EngineAPI.IApp,
   condition: DataAlertListCondition,
-  sessionId: string
+  sessionId: string,
 ) {
   logger.debug(
     `${sessionId}|${condition.name}|Searching for matching values in "${
       condition.fieldName
-    }". Searched values are: ${condition.values.join(",")}`
+    }". Searched values are: ${condition.values.join(",")}`,
   );
 
   const searchResult = await Promise.all(
@@ -652,7 +733,7 @@ async function evaluateListCondition(
         const sessionObj = await doc.mCreateSessionListbox(condition.fieldName);
         const searchResult = await sessionObj.obj.searchListObjectFor(
           "/qListObjectDef",
-          v.toString()
+          v.toString(),
         );
         const layout =
           (await sessionObj.obj.getLayout()) as EngineAPI.IGenericListLayout;
@@ -669,11 +750,11 @@ async function evaluateListCondition(
           : false;
       } catch (e) {
         logger.error(
-          `${sessionId}|${condition.name}|Error while performing value search. ${e}`
+          `${sessionId}|${condition.name}|Error while performing value search. ${e}`,
         );
         return false;
       }
-    })
+    }),
   );
 
   let result = true;
@@ -691,7 +772,7 @@ async function evaluateListCondition(
     result = searchResult.every((v) => v === false);
 
   logger.debug(
-    `${sessionId}|${condition.name}|Condition processed. The result is "${result}"`
+    `${sessionId}|${condition.name}|Condition processed. The result is "${result}"`,
   );
 
   return result;
@@ -794,6 +875,49 @@ function compareWithVariance(variance: string, resultValue: number) {
       return { upperLimit, lowerLimit };
     }
   }
+}
+
+// replace the special variables -  GUID, TODAY, NOW, RANDOM
+function replaceSpecialVariables(configString: string): string {
+  const date = new Date();
+  const today = date.toISOString().split("T")[0].replace(/-/gi, "");
+  const time = date
+    .toISOString()
+    .split("T")[1]
+    .split(".")[0]
+    .replace(/:/gi, "");
+
+  let a = configString.match(/(?<=\${)(.*?)(?=})/g);
+
+  // nothing to replace. no need to proceed return the config as it is
+  if (!a) return configString;
+
+  if (a.includes("TODAY"))
+    configString = configString.replace(/\${TODAY}/gi, today);
+
+  if (a.includes("GUID"))
+    configString = configString.replace(/\${GUID}/gi, () =>
+      randomUUID().replace(/-/gi, ""),
+    );
+
+  if (a.includes("NOW"))
+    configString = configString.replace(/\${NOW}/gi, () => `${today}${time}`);
+
+  if (a.includes("NOW_SPLIT"))
+    configString = configString.replace(
+      /\${NOW_SPLIT}/gi,
+      () => `${today}_${time}`,
+    );
+
+  if (a.includes("RANDOM"))
+    configString = configString.replace(/\${RANDOM}/gi, function () {
+      return [...Array(20)]
+        .map(() => Math.random().toString(36)[2])
+        .join("")
+        .toUpperCase();
+    });
+
+  return configString;
 }
 
 export { notificationsRouter };

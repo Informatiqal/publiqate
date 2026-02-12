@@ -1,7 +1,8 @@
-import { Callback, NotificationData } from "../interfaces";
+import { Callback, NotificationData } from "../interfaces/interfaces";
 import winston from "winston";
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 
 export const meta = {
   author: "Informatiqal",
@@ -12,7 +13,7 @@ export const meta = {
 export async function implementation(
   c: Callback,
   notification: NotificationData,
-  logger: winston.Logger
+  logger: winston.Logger,
 ) {
   const n = JSON.parse(JSON.stringify(notification));
   delete n.config.callback;

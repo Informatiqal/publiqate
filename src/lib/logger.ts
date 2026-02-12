@@ -1,6 +1,6 @@
 import * as winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
-import { LogLevels, LogLevelsDetailed } from "../interfaces";
+import { LogLevels, LogLevelsDetailed } from "../interfaces/interfaces";
 
 const fileTransport: DailyRotateFile = new DailyRotateFile({
   filename: "./log/application-%DATE%.log",

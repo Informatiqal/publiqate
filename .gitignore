@@ -15,7 +15,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 Notes.md
-config.yaml
+general.yaml
+qlik.yaml
+notifications.yaml
 echo1.js
 *-audit.json
 *.pem
@@ -23,6 +25,7 @@ vars.txt
 *.gz
 TEST.json
 .npmrc
+db.json
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

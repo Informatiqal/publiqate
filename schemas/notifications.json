@@ -1,0 +1,956 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title": "JSON Schema for Publiqate config file",
+    "description": "Publiqate config JSON schema (@informatiqal)",
+    "type": "array",
+    "items": {
+        "anyOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "App",
+                            "AnalyticConnection",
+                            "ContentLibrary",
+                            "DataConnection",
+                            "Extension",
+                            "ExecutionResult",
+                            "ReloadTask",
+                            "Stream",
+                            "User",
+                            "UserSyncTask",
+                            "SystemRule",
+                            "Tag",
+                            "CustomPropertyDefinition",
+                            "EngineService",
+                            "OdagService",
+                            "PrintingService",
+                            "ProxyService",
+                            "RepositoryService",
+                            "SchedulerService",
+                            "ServerNodeConfiguration",
+                            "VirtualProxyConfig"
+                        ]
+                    },
+                    "environment": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "MANDATORY. Name of the notification. Must be unique. Must be unique across all notifications."
+                    },
+                    "changeType": {
+                        "type": "string",
+                        "enum": [
+                            "add",
+                            "update",
+                            "delete"
+                        ]
+                    },
+                    "filter": {
+                        "type": "string"
+                    },
+                    "condition": {
+                        "type": "string"
+                    },
+                    "propertyName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "options": {
+                        "type": "object",
+                        "properties": {
+                            "getEntityDetails": {
+                                "type": "boolean"
+                            },
+                            "disableCors": {
+                                "type": "boolean"
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            },
+                            "whitelist": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "callbacks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "type"
+                            ],
+                            "if": {
+                                "properties": {
+                                    "type": {
+                                        "oneOf": [
+                                            {
+                                                "const": "echo"
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            "then": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                }
+                            },
+                            "else": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/definitions/html_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/file_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/smtp_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/http_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/s3_plugin_details"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "type"
+                                        ],
+                                        "additionalProperties": true,
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "not": {
+                                                    "enum": [
+                                                        "file",
+                                                        "s3",
+                                                        "html",
+                                                        "smtp",
+                                                        "echo",
+                                                        "http"
+                                                    ]
+                                                }
+                                            },
+                                            "enabled": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "type",
+                    "name",
+                    "environment",
+                    "changeType"
+                ],
+                "additionalProperties": false
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "DataAlert"
+                        ]
+                    },
+                    "environment": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "MANDATORY. Name of the notification. Must be unique across all notifications."
+                    },
+                    "filter": {
+                        "type": "string"
+                    },
+                    "condition": {
+                        "type": "string"
+                    },
+                    "data-conditions": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "selections": {
+                                    "type": "array",
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "field": {
+                                                        "type": "string"
+                                                    },
+                                                    "state": {
+                                                        "type": "string"
+                                                    },
+                                                    "values": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "number"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "bookmark": {
+                                                        "oneOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "number"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "conditions": {
+                                    "type": "array",
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "object",
+                                                "required": [
+                                                    "type",
+                                                    "fieldName",
+                                                    "values",
+                                                    "operation",
+                                                    "name"
+                                                ],
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "list"
+                                                        ]
+                                                    },
+                                                    "fieldName": {
+                                                        "type": "string"
+                                                    },
+                                                    "values": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "operation": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "present",
+                                                            "missing"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "type": "object",
+                                                "required": [
+                                                    "type",
+                                                    "results",
+                                                    "expression",
+                                                    "name"
+                                                ],
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "scalar"
+                                                        ]
+                                                    },
+                                                    "expression": {
+                                                        "type": "string"
+                                                    },
+                                                    "results": {
+                                                        "type": "array",
+                                                        "minItems": 1,
+                                                        "items": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "$ref": "#/definitions/results",
+                                                                    "additionalProperties": false,
+                                                                    "type": "object"
+                                                                },
+                                                                {
+                                                                    "oneOf": [
+                                                                        {
+                                                                            "type": "object",
+                                                                            "allOf": [
+                                                                                {
+                                                                                    "$ref": "#/definitions/results"
+                                                                                },
+                                                                                {
+                                                                                    "additionalProperties": false,
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                        "operator": {
+                                                                                            "type": "string",
+                                                                                            "enum": [
+                                                                                                "<",
+                                                                                                ">",
+                                                                                                ">=",
+                                                                                                "<=",
+                                                                                                "==",
+                                                                                                "!=",
+                                                                                                "=",
+                                                                                                "<>"
+                                                                                            ]
+                                                                                        },
+                                                                                        "variation": {
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        {
+                                                                            "type": "object",
+                                                                            "allOf": [
+                                                                                {
+                                                                                    "$ref": "#/definitions/results"
+                                                                                },
+                                                                                {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                        "startsWith": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "endsWith": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "subStringOf": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "options": {
+                                                                                            "type": "object",
+                                                                                            "oneOf": [
+                                                                                                {
+                                                                                                    "type": "object",
+                                                                                                    "$ref": "#/definitions/results_string_options",
+                                                                                                    "additionalProperties": false
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "object",
+                                                                                                    "allOf": [
+                                                                                                        {
+                                                                                                            "$ref": "#/definitions/results_string_options"
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "type": "object",
+                                                                                                            "properties": {
+                                                                                                                "test": {
+                                                                                                                    "type": "string"
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    ]
+                                                                                                },
+                                                                                                {
+                                                                                                    "type": "object",
+                                                                                                    "properties": {
+                                                                                                        "test": {
+                                                                                                            "type": "string"
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "options": {
+                                    "type": "object",
+                                    "properties": {
+                                        "user": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "selections",
+                                "conditions"
+                            ]
+                        }
+                    },
+                    "options": {
+                        "type": "object",
+                        "properties": {
+                            "getEntityDetails": {
+                                "type": "boolean"
+                            },
+                            "disableCors": {
+                                "type": "boolean"
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            },
+                            "whitelist": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "callbacks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "type"
+                            ],
+                            "if": {
+                                "properties": {
+                                    "type": {
+                                        "oneOf": [
+                                            {
+                                                "const": "echo"
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            "then": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                }
+                            },
+                            "else": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/definitions/html_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/file_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/smtp_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/http_plugin_details"
+                                    },
+                                    {
+                                        "$ref": "#/definitions/s3_plugin_details"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "type"
+                                        ],
+                                        "additionalProperties": true,
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "not": {
+                                                    "enum": [
+                                                        "file",
+                                                        "s3",
+                                                        "html",
+                                                        "smtp",
+                                                        "echo",
+                                                        "http"
+                                                    ]
+                                                }
+                                            },
+                                            "enabled": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "type",
+                    "name",
+                    "environment"
+                ],
+                "additionalProperties": false
+            }
+        ]
+    },
+    "definitions": {
+        "html_plugin_details": {
+            "type": "object",
+            "required": [
+                "details",
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "html"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "template",
+                        "path",
+                        "engine"
+                    ],
+                    "properties": {
+                        "template": {
+                            "type": "string"
+                        },
+                        "path": {
+                            "type": "string"
+                        },
+                        "engine": {
+                            "type": "string",
+                            "enum": [
+                                "ejs",
+                                "pug",
+                                "mustache",
+                                "handlebars"
+                            ]
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "smtp_plugin_auth_user_pass": {
+            "type": "object",
+            "required": [
+                "user",
+                "pass"
+            ],
+            "properties": {
+                "user": {
+                    "type": "string"
+                },
+                "pass": {
+                    "type": "string"
+                }
+            }
+        },
+        "smtp_plugin_auth_3LO": {
+            "type": "object",
+            "required": [
+                "user",
+                "clientId",
+                "clientSecret",
+                "accessToken"
+            ],
+            "properties": {
+                "user": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "clientSecret": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "accessToken": {
+                    "type": "string"
+                },
+                "expires": {
+                    "type": "string"
+                },
+                "accessUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "smtp_plugin_auth_2LO": {
+            "type": "object",
+            "required": [
+                "user",
+                "serviceClient",
+                "privateKey"
+            ],
+            "properties": {
+                "user": {
+                    "type": "string"
+                },
+                "serviceClient": {
+                    "type": "string"
+                },
+                "privateKey": {
+                    "type": "string"
+                }
+            }
+        },
+        "smtp_plugin_base_details": {
+            "type": "object",
+            "required": [
+                "host",
+                "port",
+                "from",
+                "to",
+                "subject",
+                "auth"
+            ],
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "auth": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/smtp_plugin_auth_user_pass"
+                        },
+                        {
+                            "$ref": "#/definitions/smtp_plugin_auth_3LO"
+                        },
+                        {
+                            "$ref": "#/definitions/smtp_plugin_auth_2LO"
+                        }
+                    ]
+                }
+            }
+        },
+        "smtp_plugin_details": {
+            "type": "object",
+            "required": [
+                "details"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "smtp"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "required": [
+                                "html"
+                            ],
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/smtp_plugin_base_details"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "html": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "object",
+                            "required": [
+                                "template",
+                                "engine"
+                            ],
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/smtp_plugin_base_details"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "template": {
+                                            "type": "string"
+                                        },
+                                        "engine": {
+                                            "type": "string",
+                                            "enum": [
+                                                "ejs",
+                                                "pug",
+                                                "mustache",
+                                                "handlebars"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "file_plugin_details": {
+            "type": "object",
+            "required": [
+                "details",
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "file"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "path"
+                    ],
+                    "properties": {
+                        "path": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "http_plugin_details": {
+            "type": "object",
+            "required": [
+                "details",
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "http"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "url"
+                    ],
+                    "properties": {
+                        "url": {
+                            "type": "string"
+                        },
+                        "method": {
+                            "type": "string",
+                            "enum": [
+                                "post",
+                                "get",
+                                "put",
+                                "delete"
+                            ]
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "s3_plugin_details": {
+            "type": "object",
+            "required": [
+                "details",
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "s3"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "details": {
+                    "type": "object",
+                    "required": [
+                        "auth",
+                        "region",
+                        "bucket"
+                    ],
+                    "properties": {
+                        "region": {
+                            "type": "string"
+                        },
+                        "bucket": {
+                            "type": "string"
+                        },
+                        "acl": {
+                            "type": "string"
+                        },
+                        "key": {
+                            "type": "string"
+                        },
+                        "serverSideEncryption": {
+                            "type": "string"
+                        },
+                        "auth": {
+                            "type": "object",
+                            "required": [
+                                "accessKeyId",
+                                "secretAccessKey"
+                            ],
+                            "properties": {
+                                "accessKeyId": {
+                                    "type": "string"
+                                },
+                                "secretAccessKey": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "results": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "required": [
+                        "value"
+                    ],
+                    "properties": {
+                        "value": {
+                            "type": [
+                                "string",
+                                "number"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "type": "object",
+                    "required": [
+                        "expression"
+                    ],
+                    "properties": {
+                        "expression": {
+                            "type": "string"
+                        }
+                    }
+                }
+            ]
+        },
+        "results_string_options": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "required": [
+                        "toLower"
+                    ],
+                    "properties": {
+                        "toLower": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                {
+                    "type": "object",
+                    "required": [
+                        "toUpper"
+                    ],
+                    "properties": {
+                        "toUpper": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
