@@ -31,6 +31,16 @@
                 "--uuid"
             ],
             "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Generate config from schema",
+            "program": "${workspaceFolder}\\src\\util\\schema-to-ts.js",
+            "smartStep": true,
+            "internalConsoleOptions": "openOnSessionStart",
+            "outputCapture": "std",
+            "cwd": "${workspaceFolder}\\src\\util"
         }
     ]
 }

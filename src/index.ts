@@ -16,10 +16,17 @@ import { logger, flushLogs, setDefaultLevel, adminLogger } from "./lib/logger";
 import { generalRouter } from "./routes/general";
 import { notificationsRouter, initNotifications } from "./routes/notifications";
 
-import { Config, Notification } from "./interfaces";
+import {
+  BuiltInPlugins,
+  NotificationRepo,
+  Config,
+  Notification,
+} from "./interfaces/interfaces";
 import { adminRouter } from "./routes/admin";
 import { apiRouter, apiEmitter, setCookieSecret } from "./routes/api";
-import { prepareAndValidateConfig } from "./lib/configValidate";
+import { loadConfig } from "./lib/config";
+import { GeneralConfig21 } from "./interfaces/general";
+import * as db from "./lib/store";
 
 process.setMaxListeners(100);
 
@@ -83,38 +90,36 @@ if (values["uuid"]) {
   process.exit(0);
 }
 
-let config = {} as Config;
+let configAll = {} as Config;
 let notifications = {} as { [k: string]: Notification };
 let repoClient = {} as { [k: string]: QlikRepoApi.client };
 let port = 0;
+const builtInPlugins: BuiltInPlugins = {
+  echo: true,
+  http: true,
+  file: true,
+};
 
 apiEmitter.on("reloadConfig", async () => {
   logger.info("Reloading config started");
-
   notifications = {};
-
-  let configDetails = await prepareAndValidateConfig(logger);
-
-  config = configDetails.config;
-  notifications = configDetails.notifications;
-
+  let { configDetails } = await loadConfig(logger);
+  configAll = configDetails;
+  let a = configDetails.notificationsObj;
+  notifications = configDetails.notificationsObj;
   // if we need to change the log level
-  setDefaultLevel(config.general.logLevel);
-
+  setDefaultLevel(configAll.general.logLevel);
   await initNotifications(
     notifications,
     repoClient,
-    config.plugins,
-    config.qlik,
-    config.general.logLevel,
-    true
+    configAll.qlik,
+    configAll.general,
+    true,
+    { ...builtInPlugins, ...configAll.general.builtInPlugins },
   );
-
   await createQlikNotifications(port);
-
   //NOTE: shall we allow Qlik config to be changed on the fly?
-  //await prepareRepoClients();
-
+  // await prepareRepoClients();
   logger.info("Reloading config finished");
 });
 
@@ -127,22 +132,29 @@ apiEmitter.on("deleteNotification", async (notificationId) => {
 
       await repo.notification
         .remove({
-          handle: notification.handle,
+          handle: (notification as NotificationRepo).handle,
         })
         .then((r) => {
           logger.info(
-            `Notification ID ${notificationId} with handle ${notification.handle} was de-registered`
+            `Notification "${notification.nameOriginal}" with handle ${(notification as NotificationRepo).handle} was de-registered`,
           );
 
           // once the notification is removed from Qlik
           // then remove it from the list with the notifications as well
           delete notifications[notificationId];
+
+          db.removeHandle(notificationId);
         })
         .catch((e) => {
           logger.error(
-            `Failed to de-register notification ${notificationId}. Error: ${e}`
+            `Failed to de-register notification ${notificationId}. Error: ${e}`,
           );
         });
+    } else {
+      // just in case the handle is present in the DB
+      try {
+        db.removeHandle(notificationId);
+      } catch (e) {}
     }
   } catch (e) {
     logger.error(e);
@@ -150,22 +162,19 @@ apiEmitter.on("deleteNotification", async (notificationId) => {
 });
 
 async function prepareRepoClients() {
-  config.qlik.map((q) => {
+  configAll.qlik.map((q) => {
     const cert = readFileSync(`${q.certs}\\client.pem`);
     const key = readFileSync(`${q.certs}\\client_key.pem`);
-
     let authentication = {
       user_dir: "INTERNAL",
       user_name: "sa_scheduler",
     };
-
     if (q.userDir && q.userName) {
       authentication = {
         user_dir: q.userDir,
         user_name: q.userName,
       };
     }
-
     repoClient[q.name] = new QlikRepoApi.client({
       host: q.host,
       port: 4242,
@@ -212,26 +221,26 @@ async function createQlikNotifications(port: number) {
     "DataAlert",
   ];
 
-  const callbackURLProtocol = config.general.certs ? "https" : "http";
-  const callbackBaseURL = `${callbackURLProtocol}://${config.general.uri}:${port}`;
+  const callbackURLProtocol = configAll.general.certs ? "https" : "http";
+  const callbackBaseURL = `${callbackURLProtocol}://${configAll.general.uri}:${port}`;
 
   await Promise.all(
     Object.entries(notifications).map(([id, notification]) => {
       if (!notificationTypes.includes(notification.type))
         throw new Error(
-          `Notification type "${notification.type}" is not valid value`
+          `Notification type "${notification.type}" is not valid value`,
         );
 
       if (notification.type != "DataAlert") {
         if (!changeTypes[notification.changeType.toLowerCase()])
           throw new Error(
-            `changeType "${notification.changeType}" is not valid value`
+            `changeType "${notification.changeType}" is not valid value`,
           );
       }
 
       const notificationData = {
         name: "",
-        changeType: "",
+        changetype: "",
         uri: `${callbackBaseURL}/notifications/callback/${id}`,
       };
 
@@ -243,16 +252,16 @@ async function createQlikNotifications(port: number) {
           notificationData["propertyname"] = notification["propertyName"];
 
         notificationData.name = notification.type;
-        notificationData.changeType =
+        notificationData.changetype =
           changeTypes[notification.changeType.toLowerCase()];
       } else {
         if (!notification.hasOwnProperty("filter"))
           logger.crit(
-            `DataAlert notification should have filter property. Notification ID: ${notification.id}`
+            `DataAlert notification should have filter property. Notification ID: ${notification.nameOriginal}`,
           );
 
         notificationData.name = "App";
-        notificationData.changeType = "2";
+        notificationData.changetype = "2";
       }
 
       if (notification.filter) notificationData["filter"] = notification.filter;
@@ -263,47 +272,62 @@ async function createQlikNotifications(port: number) {
           // its replaced with App above anyway
           //@ts-ignore
           .create(notificationData)
-          .then((e) => {
-            notification.handle = e;
+          .then(async (e) => {
+            await db.addHandle(id, notification.nameOriginal, e);
+            notifications[id]["handle"] = e;
             logger.info(
-              `Notification "${notification.name}" registered. ID: ${id} with Qlik handle: ${e}`
+              `Notification "${notification.nameOriginal}" registered with Qlik handle: ${e}`,
             );
-
-            logger.debug(`Create notification response from Qlik: ${e}`);
+          })
+          .catch((e) => {
+            logger.crit(
+              `Error while creating notification "${notification.nameOriginal}"`,
+            );
+            logger.crit(`${e.message}`);
+            process.exit(1);
           })
       );
-    })
+    }),
   );
 }
 
 async function run() {
-  logger.info("Starting...");
+  logger.info("Starting core web server ...");
 
-  let configDetails = await prepareAndValidateConfig(logger);
+  await db.init();
 
-  config = configDetails.config;
-  notifications = configDetails.notifications;
+  // let configDetails = await prepareAndValidateConfig(logger);
+  let { configDetails, isConfigValid } = await loadConfig(logger);
+  if (!isConfigValid) {
+    throw new Error("Exiting due to config load/validation issue(s)");
+  }
 
-  setDefaultLevel(config.general.logLevel);
+  configAll = configDetails;
+
+  logger.info("Config files were read and validated successfully");
+
+  notifications = configAll.notificationsObj;
+
+  setDefaultLevel(configAll.general.logLevel);
 
   // if port is defined in the config - use it
   // if not then if certs are defined the default port is 8443
   // if not then defaults to 8080
-  port = config.general?.port
-    ? config.general?.port
-    : config.general.certs
-    ? 8443
-    : 8080;
+  port = configAll.general?.port
+    ? configAll.general?.port
+    : configAll.general.certs
+      ? 8443
+      : 8080;
 
   await prepareRepoClients();
 
   await initNotifications(
     notifications,
     repoClient,
-    config.plugins,
-    config.qlik,
-    config.general.logLevel,
-    false
+    configAll.qlik,
+    configAll.general,
+    false,
+    { ...builtInPlugins, ...configAll.general.builtInPlugins },
   );
 
   await createQlikNotifications(port);
@@ -323,30 +347,30 @@ function startWebServer(port: number) {
 
   app.use("/", generalRouter);
   app.use("/notifications", notificationsRouter);
-  app.all("*", (req, res) => {
+  app.all(/(.*)/, (req, res) => {
     res.status(404).send();
   });
 
   // if certs config property exists then start HTTPS server
   // else start HTTP server
-  if (config.general.certs) {
+  if (configAll.general.certs) {
     const privateKey = fs.readFileSync(
-      `${config.general.certs}/key.pem`,
-      "utf8"
+      `${configAll.general.certs}/key.pem`,
+      "utf8",
     );
     const certificate = fs.readFileSync(
-      `${config.general.certs}/cert.pem`,
-      "utf8"
+      `${configAll.general.certs}/cert.pem`,
+      "utf8",
     );
     const httpsServer = https.createServer(
       {
         key: privateKey,
         cert: certificate,
       },
-      app
+      app,
     );
 
-    logger.debug(`Certificates loaded from ${config.general.certs}`);
+    logger.debug(`Certificates loaded from ${configAll.general.certs}`);
 
     httpsServer.listen(port, () => {
       logger.info(`Core web server is running on port ${port} -> HTTPS`);
@@ -357,8 +381,9 @@ function startWebServer(port: number) {
     });
   }
 
-  if (config.general.admin !== false) {
+  if (configAll.general.admin !== false) {
     try {
+      adminLogger.info("Starting admin web server ...");
       // Admin https server below
       const adminApp = express();
       adminApp.use(express.urlencoded({ extended: true }));
@@ -367,39 +392,42 @@ function startWebServer(port: number) {
       adminApp.use("/admin", adminRouter);
       adminApp.use("/api", apiRouter);
 
-      setCookieSecret(config.general.admin.cookie);
+      setCookieSecret((configAll.general.admin as GeneralConfig21).cookie);
 
-      const adminPort = config.general.admin.port || 8099;
+      const adminPort =
+        (configAll.general.admin as GeneralConfig21).port || 8099;
 
       const adminPrivateKey = fs.readFileSync(
-        `${config.general.admin.certs}/key.pem`,
-        "utf8"
+        `${(configAll.general.admin as GeneralConfig21).certs}/key.pem`,
+        "utf8",
       );
       const adminCertificate = fs.readFileSync(
-        `${config.general.admin.certs}/cert.pem`,
-        "utf8"
+        `${(configAll.general.admin as GeneralConfig21).certs}/cert.pem`,
+        "utf8",
       );
       const httpsAdminServer = https.createServer(
         {
           key: adminPrivateKey,
           cert: adminCertificate,
         },
-        adminApp
+        adminApp,
       );
 
-      logger.debug(`Admin Certificates loaded from ${config.general.certs}`);
+      adminLogger.debug(
+        `Admin Certificates loaded from ${(configAll.general.admin as GeneralConfig21).certs}`,
+      );
 
       httpsAdminServer.listen(adminPort, () => {
         adminLogger.info(
-          `Admin HTTPS web server is running on port ${adminPort}`
+          `Admin HTTPS web server is running on port ${adminPort}`,
         );
       });
     } catch (e) {
-      logger.error("Admin UI and API failed to load");
-      logger.error(e);
+      adminLogger.error("Admin UI and API failed to load");
+      adminLogger.error(e);
     }
   } else {
-    logger.info("Admin UI and API endpoints are disabled in the config");
+    adminLogger.info("Admin UI and API endpoints are disabled in the config");
   }
 }
 

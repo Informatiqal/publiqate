@@ -1,4 +1,4 @@
-import { Callback, NotificationData } from "../interfaces";
+import { Callback, NotificationData } from "../interfaces/interfaces";
 import winston from "winston";
 
 export const meta = {

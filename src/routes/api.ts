@@ -3,11 +3,8 @@ import express, { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import { EventEmitter } from "node:events";
 import { adminLogger, logger } from "../lib/logger";
-import {
-  prepareAndValidateConfig,
-  validateConfig,
-} from "../lib/configValidate";
-import { CookieSecret } from "../interfaces";
+import { loadConfig } from "../lib/config";
+import { CookieSecret } from "../interfaces/interfaces";
 
 const apiEmitter = new EventEmitter();
 
@@ -35,19 +32,14 @@ apiRouter.use(
 
 //@ts-ignore
 apiRouter.get("/config/reload", async (req: Request, res: Response) => {
-  const { valid, validate } = await validateConfig();
+  const { isConfigValid } = await loadConfig(adminLogger);
 
   adminLogger.info("Received config reload");
 
-  if (valid == false || (validate.errors && validate.errors?.length > 0)) {
-    adminLogger.warning(
-      `Config reload aborted. Config errors: ${JSON.stringify({
-        valid,
-        errors: validate?.errors || [],
-      })}`
-    );
+  if (!isConfigValid) {
+    adminLogger.warning(`Config reload aborted due to load/validation errors`);
 
-    return res.status(400).json({ valid, errors: validate?.errors || [] });
+    return res.status(400).send();
   }
 
   apiEmitter.emit("reloadConfig");
@@ -55,21 +47,13 @@ apiRouter.get("/config/reload", async (req: Request, res: Response) => {
 });
 
 apiRouter.get("/config/verify", async (req: Request, res: Response) => {
-  const { valid, validate } = await validateConfig();
+  adminLogger.info(`Config verification starts`);
+  const { isConfigValid } = await loadConfig(adminLogger);
   adminLogger.info(
-    `Verification complete with ${
-      validate?.errors ? validate.errors.length : 0
-    } error(s) found`
+    `Config verification completed. Config validation is "${isConfigValid}"`
   );
 
-  if (validate.errors)
-    adminLogger.warning(
-      `Config validation errors: ${validate.errors
-        .map((e) => e.message)
-        .join(", ")}`
-    );
-
-  res.status(200).send({ valid, errors: validate?.errors || [] });
+  res.status(200).send({ isConfigValid });
 });
 
 apiRouter.delete(
@@ -84,9 +68,9 @@ apiRouter.delete(
 
 apiRouter.get("/notification/list", async (req: Request, res: Response) => {
   try {
-    const config = await prepareAndValidateConfig(logger);
+    const { configDetails } = await loadConfig(adminLogger);
 
-    const ids = Object.keys(config.notifications);
+    const ids = Object.keys(configDetails.notificationsObj);
 
     res.contentType("application/json");
     res.status(200).send(ids);

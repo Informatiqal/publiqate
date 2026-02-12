@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-import { Callback, NotificationData } from "../interfaces";
+import { Callback, NotificationData } from "../interfaces/interfaces";
 import { Logger } from "winston";
 
 export const meta = {

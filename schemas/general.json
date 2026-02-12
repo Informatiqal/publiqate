@@ -1,0 +1,171 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title": "JSON Schema for Publiqate config file",
+    "description": "Publiqate config JSON schema (@informatiqal)",
+    "type": "object",
+    "properties": {
+        "port": {
+            "type": "integer"
+        },
+        "uri": {
+            "type": "string"
+        },
+        "certs": {
+            "type": "string"
+        },
+        "logLevel": {
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [
+                        "debug",
+                        "info",
+                        "error"
+                    ]
+                },
+                {
+                    "type": "object",
+                    "required": [
+                        "core"
+                    ],
+                    "properties": {
+                        "core": {
+                            "type": "string",
+                            "enum": [
+                                "debug",
+                                "info",
+                                "error"
+                            ]
+                        },
+                        "admin": {
+                            "type": "string",
+                            "enum": [
+                                "debug",
+                                "info",
+                                "error"
+                            ]
+                        },
+                        "qlik": {
+                            "type": "string",
+                            "enum": [
+                                "debug",
+                                "info",
+                                "error"
+                            ]
+                        }
+                    },
+                    "additionalProperties": {
+                        "type": "string",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "error"
+                        ]
+                    }
+                }
+            ]
+        },
+        "vars": {
+            "oneOf": [
+                {
+                    "type": "string",
+                    "description": "Location to file where secrets are stored"
+                },
+                {
+                    "type": "array",
+                    "description": "Locations of files where the secrets are stored. Files are loaded alphabetically and last variable occurrence becomes the active one",
+                    "items": {
+                        "description": "Location to file where secrets are stored",
+                        "type": "string"
+                    }
+                }
+            ]
+        },
+        "builtInPlugins": {
+            "type": "object",
+            "properties": {
+                "echo": {
+                    "type": "boolean"
+                },
+                "http": {
+                    "type": "boolean"
+                },
+                "file": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "deregisterMissing": {
+            "type": "boolean"
+        },
+        "admin": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "cookie": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "value"
+                            ]
+                        },
+                        "certs": {
+                            "type": "string"
+                        },
+                        "port": {
+                            "type": "number"
+                        }
+                    },
+                    "required": [
+                        "cookie",
+                        "certs"
+                    ]
+                },
+                {
+                    "type": "boolean"
+                }
+            ]
+        },
+        "plugins": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "notifications": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "getEntityDetails": {
+                    "type": "boolean"
+                },
+                "disableCors": {
+                    "type": "boolean"
+                },
+                "whitelist": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "description": "Basic regex to allow urls only (to avoid any further issues as earlier as possible)",
+                        "pattern": "^(https?|http):\\\/\\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}"
+                    }
+                }
+            }
+        }
+    },
+    "required": [
+        "port",
+        "uri",
+        "admin"
+    ]
+}
