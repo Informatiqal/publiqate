@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://github.com/Informatiqal/publiqate/blob/main/schemas/config.json?raw=true
+
+general:
+  port: 8000
+  uri: "192.168.0.1"
+  # certs: ${notifications_certs}
+  logLevel: info
+  vars: "./vars.txt"
+  admin:
+    # port: 8001
+    cookie:
+      name: ${cookie_name}
+      value: ${cookie_value}
+    certs: ${admin_certs}
+
+plugins:
+  - ${plugins_path}\my-plugin\index.js
