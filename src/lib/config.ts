@@ -2,7 +2,7 @@ import { varLoader } from "@informatiqal/variables-loader";
 import fs from "fs";
 import yaml from "js-yaml";
 import ajvErrors from "ajv-errors";
-import Ajv, { ErrorObject, ValidateFunction } from "ajv";
+import Ajv, { ValidateFunction } from "ajv";
 
 import { Config, Notifications } from "../interfaces/interfaces";
 import { Logger } from "winston";
@@ -27,10 +27,7 @@ export async function loadConfig(log: Logger) {
   const configs = await readAndParseConfigs();
   if (!isConfigValid) return { isConfigValid, configDetail: {} as Config };
 
-  await checkMissingEnvironment(
-    configs.qlik.config,
-    configs.notifications.config,
-  );
+  checkMissingEnvironment(configs.qlik.config, configs.notifications.config);
 
   configs.notifications.config = setNotificationsDefaultOptions(
     configs.notifications.config,
@@ -44,9 +41,9 @@ export async function loadConfig(log: Logger) {
     },
   );
 
-  await checkDuplicateNotificationNames(configs.notifications.config);
+  checkDuplicateNotificationNames(configs.notifications.config);
 
-  configs.notifications.config = await removeDisabledNotifications(
+  configs.notifications.config = removeDisabledNotifications(
     configs.notifications.config,
   );
 
@@ -68,42 +65,57 @@ export async function loadConfig(log: Logger) {
 
   let finalConfig = {} as Config;
   if (configs.general.config.vars) {
-    if (Array.isArray(configs.general.config.vars)) {
-      //
+    let varsFiles: string[] = [];
+
+    if (!Array.isArray(configs.general.config.vars)) {
+      varsFiles.push(configs.general.config.vars);
+    } else {
+      varsFiles = configs.general.config.vars;
     }
 
-    if (!fs.existsSync(configs.general.config.vars as string)) {
-      isConfigValid = false;
-      logger.error(
-        `Variables files specified but do not exists: ${configs.general.config.vars}`,
-      );
-      return { isConfigValid, configDetails: {} as Config };
-    }
+    varsFiles.map((v) => {
+      if (!fs.existsSync(v)) {
+        logger.error(`Variables files specified but do not exists: ${v}`);
+        return { isConfigValid: false, configDetails: {} as Config };
+      }
+    });
 
     const configVariables = fullRawConfig
       .match(/(?<!\$)(\${)(.*?)(?=})/g)
       .map((v) => v.substring(2));
 
-    const variablesData = varLoader({
-      sources: {
-        file: configs.general.config.vars as string,
-      },
-      ignore: ["TODAY", "GUID", "NOW", "NOW_SPLIT", "RANDOM"],
-      variables: configVariables,
+    let varValues = {};
+    let varMissing = [];
+
+    // load all variable files
+    varsFiles.map((v) => {
+      const a = varLoader({
+        sources: {
+          file: v,
+        },
+        ignore: ["TODAY", "GUID", "NOW", "NOW_SPLIT", "RANDOM"],
+        variables: configVariables,
+      });
+
+      varValues = { ...varValues, ...a.values };
+      Object.keys(a.values).map((v) => {
+        if (varMissing.includes(v)) {
+          const index = varMissing.findIndex((e) => e == v);
+          if (index > -1) varMissing.splice(index, 1);
+        }
+      });
     });
 
-    if (variablesData.missing) {
+    if (varMissing.length > 0) {
       isConfigValid = false;
       logger.error(
-        `Missing variable(s) value: ${variablesData.missing
-          .map((v) => v)
-          .join(", ")}`,
+        `Missing variable(s) value: ${varMissing.map((v) => v).join(", ")}`,
       );
 
       return { isConfigValid, configDetails: {} as Config };
     }
 
-    fullRawConfig = replaceVariables(fullRawConfig, variablesData.values);
+    fullRawConfig = replaceVariables(fullRawConfig, varValues);
     finalConfig = JSON.parse(fullRawConfig);
     let n = {};
     // configs.notifications.config.map((notification) => {
@@ -178,7 +190,7 @@ async function loadConfigFile<T>(configType: string): Promise<{
   valid: boolean;
 }> {
   const configRaw = fs.readFileSync(`./configs/${configType}.yaml`).toString();
-  const config: T = yaml.load(configRaw);
+  const config = yaml.load(configRaw) as T;
   const configSchema = JSON.parse(
     fs.readFileSync(`./schemas/${configType}.json`).toString(),
   );

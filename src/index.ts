@@ -77,7 +77,7 @@ const options = {
   },
 };
 
-const { values, positionals } = parseArgs({
+const { values } = parseArgs({
   args,
   //@ts-ignore
   options,
@@ -105,7 +105,6 @@ apiEmitter.on("reloadConfig", async () => {
   notifications = {};
   let { configDetails } = await loadConfig(logger);
   configAll = configDetails;
-  let a = configDetails.notificationsObj;
   notifications = configDetails.notificationsObj;
   // if we need to change the log level
   setDefaultLevel(configAll.general.logLevel);
@@ -134,7 +133,7 @@ apiEmitter.on("deleteNotification", async (notificationId) => {
         .remove({
           handle: (notification as NotificationRepo).handle,
         })
-        .then((r) => {
+        .then(() => {
           logger.info(
             `Notification "${notification.nameOriginal}" with handle ${(notification as NotificationRepo).handle} was de-registered`,
           );
@@ -340,14 +339,14 @@ function startWebServer(port: number) {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
 
-  app.use(function (req, res, next) {
+  app.use(function (req, _, next) {
     req.headers.origin = req.headers.origin || req.headers.host;
     next();
   });
 
   app.use("/", generalRouter);
   app.use("/notifications", notificationsRouter);
-  app.all(/(.*)/, (req, res) => {
+  app.all(/(.*)/, (_, res) => {
     res.status(404).send();
   });
 

@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://github.com/Informatiqal/publiqate/blob/main/schemas/notifications.json?raw=true
+
+- type: Stream
+  environment: Sense Environment 1 # defined in qlik.yaml
+  name: When some stream is updated
+  filter: id eq 11111111-2222-3333-4444-555555555555
+  changeType: update
+  options:
+    enabled: true
+    disableCors: true
+    # whitelist:
+    #   - ${source_whitelist_1}
+    #   - ${source_whitelist_2}
+    #   - ${source_whitelist_3}
+  callbacks:
+    - type: echo
+      enabled: true
+
+    - type: http
+      details:
+        method: post
+        url: http://localhost:3000
+
+    - type: file
+      enabled: true
+      details:
+        path: C:\some\folder\temp_${TODAY}.json

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://github.com/Informatiqal/publiqate/blob/main/schemas/qlik.json?raw=true
+
+- name: Sense Environment 1
+  certs: c:\folder\with\qlik\certificates
+  # certs: ${qlik_cert} # or use values loaded from the variable file
+  host: my-sense-central.com
+  userName: someUser
+  userDir: someUserDir
+
+- name: Another Sense Environment
+  certs: c:\folder\with\more\qlik\certificates
+  host: another-sense-central.com
+  userName: anotherUser
+  userDir: anotherUserDir

@@ -27,11 +27,11 @@ apiRouter.use(
         next();
       }
     }
-  }
+  },
 );
 
 //@ts-ignore
-apiRouter.get("/config/reload", async (req: Request, res: Response) => {
+apiRouter.get("/config/reload", async (_: Request, res: Response) => {
   const { isConfigValid } = await loadConfig(adminLogger);
 
   adminLogger.info("Received config reload");
@@ -46,11 +46,11 @@ apiRouter.get("/config/reload", async (req: Request, res: Response) => {
   res.status(200).send();
 });
 
-apiRouter.get("/config/verify", async (req: Request, res: Response) => {
+apiRouter.get("/config/verify", async (_: Request, res: Response) => {
   adminLogger.info(`Config verification starts`);
   const { isConfigValid } = await loadConfig(adminLogger);
   adminLogger.info(
-    `Config verification completed. Config validation is "${isConfigValid}"`
+    `Config verification completed. Config validation is "${isConfigValid}"`,
   );
 
   res.status(200).send({ isConfigValid });
@@ -63,10 +63,10 @@ apiRouter.delete(
 
     apiEmitter.emit("deleteNotification", notificationId);
     res.status(204).send();
-  }
+  },
 );
 
-apiRouter.get("/notification/list", async (req: Request, res: Response) => {
+apiRouter.get("/notification/list", async (_: Request, res: Response) => {
   try {
     const { configDetails } = await loadConfig(adminLogger);
 

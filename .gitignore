@@ -10,6 +10,8 @@ src/index.doc.ts
 # Logs
 logs
 *.log
+log/
+test/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -21,11 +23,12 @@ notifications.yaml
 echo1.js
 *-audit.json
 *.pem
-vars.txt
+vars*.txt
 *.gz
 TEST.json
 .npmrc
 db.json
+codebook.toml
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

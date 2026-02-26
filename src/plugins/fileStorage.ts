@@ -2,7 +2,6 @@ import { Callback, NotificationData } from "../interfaces/interfaces";
 import winston from "winston";
 import fs from "fs";
 import path from "path";
-import { randomUUID } from "crypto";
 
 export const meta = {
   author: "Informatiqal",
@@ -15,11 +14,15 @@ export async function implementation(
   notification: NotificationData,
   logger: winston.Logger,
 ) {
-  const n = JSON.parse(JSON.stringify(notification));
-  delete n.config.callback;
+  try {
+    const n = JSON.parse(JSON.stringify(notification));
+    delete n.config.callback;
 
-  const folder = path.dirname(c.details.path);
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+    const folder = path.dirname(c.details.path);
+    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
 
-  fs.appendFileSync(c.details.path, `${JSON.stringify(n)}\n`);
+    fs.appendFileSync(c.details.path, `${JSON.stringify(n)}\n`);
+  } catch (e) {
+    logger.error(e.message);
+  }
 }

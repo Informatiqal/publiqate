@@ -3,7 +3,6 @@ import WebSocket from "ws";
 import express, { NextFunction, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import {
-  Config,
   Plugin,
   Notification,
   NotificationData,
@@ -51,7 +50,7 @@ let plugins: {
     logger: winston.Logger,
   ) => Promise<any>;
 } = {};
-let logLevel = logLevels;
+// let logLevel = logLevels;
 let environments = [] as unknown as QlikComm[];
 
 const notificationsRouter = express.Router();
@@ -153,7 +152,7 @@ function initRoutes() {
   notificationsRouter.post(
     "/callback/:notificationId",
     checkWhitelisting,
-    async (req: Request, res: Response) => {
+    async (req: Request, _: Response) => {
       // const notificationId = querystring.unescape(req.params["notificationId"]);
       const notification = req["publiqateNotification"] as NotificationRepo;
 
@@ -165,13 +164,22 @@ function initRoutes() {
       }
 
       // remove duplicate notifications ... if any
-      req.body = req.body.filter((value, index, self) => {
-        // return self.findIndex((v) => v.id === value.id) === index;
-        if (value.objectID)
-          return self.findIndex((v) => v.objectID === value.objectID) === index;
+      req.body = req.body.filter(
+        (value: { id: string; objectID: string }, index: number, self: any) => {
+          // return self.findIndex((v) => v.id === value.id) === index;
+          if (value.objectID)
+            return (
+              self.findIndex(
+                (v: { objectID: string }) => v.objectID === value.objectID,
+              ) === index
+            );
 
-        if (value.id) return self.findIndex((v) => v.id === value.id) === index;
-      });
+          if (value.id)
+            return (
+              self.findIndex((v: { id: string }) => v.id === value.id) === index
+            );
+        },
+      );
 
       //TODO: issue with the schema to types lib?
       if ((notification as any).type == "DataAlert") {
@@ -182,7 +190,7 @@ function initRoutes() {
     },
   );
 
-  notificationsRouter.post("/health", async (req: Request, res: Response) => {
+  notificationsRouter.post("/health", async (_: Request, res: Response) => {
     res.status(200).send();
   });
 }
@@ -206,7 +214,7 @@ export async function initNotifications(
   // if (generalLogLevel) logLevel = generalLogLevel;
 
   // clear all existing (if any) loggers
-  Object.entries(pluginLoggers).map(([name, logger]) => {
+  Object.entries(pluginLoggers).map(([_, logger]) => {
     logger.close();
   });
   pluginLoggers = {};
@@ -277,6 +285,12 @@ async function loadPlugins(builtInPLugins: GeneralConfig15) {
               `Plugin "meta.name" property not defined. Loading plugin from ${plugin}`,
             );
 
+          // Duplicate plugins are not permitted
+          if (plugins[p.meta.name])
+            throw new Error(
+              `Plugin with name "${p.meta.name}" is already registered. Duplicate plugins are not allowed`,
+            );
+
           if (plugins[p.meta.name])
             throw new Error(
               `Plugin with name "${p.meta.name}" already registered. Loading plugin from ${plugin}`,
@@ -321,23 +335,25 @@ async function loadPlugins(builtInPLugins: GeneralConfig15) {
   }
 }
 
-function relay(b: NotificationData) {
+async function relay(b: NotificationData) {
   const b1 = JSON.parse(replaceSpecialVariables(JSON.stringify(b)));
-  let activeCallbacks = b1.config.callbacks.filter((c) => {
-    if (c.hasOwnProperty("enabled") && c.enabled == true) return true;
-    if (!c.hasOwnProperty("enabled")) return true;
+  let activeCallbacks = b1.config.callbacks.filter(
+    (c: { enabled: boolean }) => {
+      if (c.hasOwnProperty("enabled") && c.enabled == true) return true;
+      if (!c.hasOwnProperty("enabled")) return true;
 
-    return false;
-  });
+      return false;
+    },
+  );
 
   return Promise.all(
-    activeCallbacks.map((c) => plugins[c.type](c, b1, pluginLoggers[c.type])),
+    activeCallbacks.map((c: { type: string }) =>
+      plugins[c.type](c, b1, pluginLoggers[c.type]),
+    ),
   ).catch((e) => {
     logger.error(e.message);
   });
 }
-
-// d3b51017-24e8-49b5-a5fa-2086bfde7f42
 
 async function processDataAlertNotification(
   notification: Notification,
@@ -363,8 +379,9 @@ async function processDataAlertNotification(
     return;
   }
 
-  const updatedProperties = req.body.filter((n) =>
-    n.changedProperties.includes("lastReloadTime"),
+  const updatedProperties = req.body.filter(
+    (n: { changedProperties: string[] }) =>
+      n.changedProperties.includes("lastReloadTime"),
   );
 
   if (updatedProperties.length != 1) return;
@@ -380,23 +397,25 @@ async function processDataAlertNotification(
     };
   } = {};
 
-  (notification as NotificationDataAlert)["data-conditions"].map((dc) => {
-    // if no options or options.user is missing
-    // then set to INTERNAL\sa_scheduler as a default connection user
-    const user = !dc.options
-      ? "INTERNAL\\sa_scheduler"
-      : !dc.options.user
+  (notification as NotificationDataAlert)["data-conditions"].map(
+    (dc: DataAlertCondition) => {
+      // if no options or options.user is missing
+      // then set to INTERNAL\sa_scheduler as a default connection user
+      const user = !dc.options
         ? "INTERNAL\\sa_scheduler"
-        : dc.options.user;
+        : !dc.options.user
+          ? "INTERNAL\\sa_scheduler"
+          : dc.options.user;
 
-    if (!engineUserConnections[user])
-      engineUserConnections[user] = {
-        conditions: [],
-        connection: {} as enigmaJS.ISession,
-      };
+      if (!engineUserConnections[user])
+        engineUserConnections[user] = {
+          conditions: [],
+          connection: {} as enigmaJS.ISession,
+        };
 
-    engineUserConnections[user].conditions.push(dc);
-  });
+      engineUserConnections[user].conditions.push(dc);
+    },
+  );
 
   const cert = readFileSync(`${qlikEnv.certs}\\client.pem`);
   const key = readFileSync(`${qlikEnv.certs}\\client_key.pem`);
@@ -412,7 +431,7 @@ async function processDataAlertNotification(
       url: `wss://${qlikEnv.host}:4747/${
         app[0].details.id
       }/identity/${+new Date()}`,
-      createSocket: (url) =>
+      createSocket: (url: string) =>
         new WebSocket(url, {
           //@ts-ignore
           key,
@@ -516,7 +535,7 @@ async function processDataAlertNotification(
         );
         logger.error(e);
       }
-      session.close().then((r) => {
+      session.close().then(() => {
         qlikCommsLogger.debug(
           `${session["publiqateId"]}|Session for app ${app[0].details.id} opened with user ${user} is closed`,
         );
@@ -542,7 +561,7 @@ async function processRepoNotification(
   // usually this is to exclude notifications which where changed (modifiedDate)
   // but the required property was not changed. Its a Qlik thingy
   if (notification.hasOwnProperty("propertyName")) {
-    req.body = req.body.filter((n) =>
+    req.body = req.body.filter((n: { changedProperties: string[] }) =>
       n.changedProperties.includes(
         (notification as NotificationRepo).propertyName,
       ),
@@ -576,7 +595,7 @@ async function processRepoNotification(
     )}s`;
 
     const entities = await Promise.all(
-      req.body.map((entity) => {
+      req.body.map((entity: { objectID: string }) => {
         if (objectType == "executionResults") {
           return repoClient[notification.environment][objectType]
             .get({
@@ -743,7 +762,7 @@ async function evaluateListCondition(
 
         await doc
           .destroySessionObject(sessionObj.props.qInfo.qId)
-          .catch((e) => {});
+          .catch(() => {});
 
         return layout.qListObject.qSize.qcx > 0 && layout.qListObject.qSize.qcy
           ? true
@@ -778,33 +797,37 @@ async function evaluateListCondition(
   return result;
 }
 
-const inRange = (num, min, max) => num >= min && num <= max;
+const inRange = (
+  num: number | string,
+  min: number | string,
+  max: number | string,
+) => num >= min && num <= max;
 
 const parseNum = (str: string) => +str.replace(/[^.\d]/g, "");
 
 const operations = {
-  ">": function (a, b) {
+  ">": function (a: number | string, b: number | string) {
     return a > b;
   },
-  "<": function (a, b) {
+  "<": function (a: number | string, b: number | string) {
     return a < b;
   },
-  ">=": function (a, b) {
+  ">=": function (a: number | string, b: number | string) {
     return a >= b;
   },
-  "<=": function (a, b) {
+  "<=": function (a: number | string, b: number | string) {
     return a <= b;
   },
-  "==": function (a, b) {
+  "==": function (a: number | string, b: number | string) {
     return a == b;
   },
-  "=": function (a, b) {
+  "=": function (a: number | string, b: number | string) {
     return a == b;
   },
-  "!=": function (a, b) {
+  "!=": function (a: number | string, b: number | string) {
     return a != b;
   },
-  "<>": function (a, b) {
+  "<>": function (a: number | string, b: number | string) {
     return a != b;
   },
 };

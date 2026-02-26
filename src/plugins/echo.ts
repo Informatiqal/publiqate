@@ -10,11 +10,15 @@ export const meta = {
 export async function implementation(
   c: Callback,
   notification: NotificationData,
-  logger: winston.Logger
+  logger: winston.Logger,
 ) {
-  const n = JSON.parse(JSON.stringify(notification));
-  delete n.config.callback;
-  delete n.config.callback;
+  try {
+    const n = JSON.parse(JSON.stringify(notification));
+    delete n.config.callback;
+    delete n.config.callback;
 
-  logger.info(JSON.stringify(n));
+    logger.info(JSON.stringify(n));
+  } catch (e) {
+    logger.error(e.message);
+  }
 }
