@@ -11,7 +11,13 @@
  * @minItems 1
  */
 export type QlikConfig = [QlikConfig1, ...QlikConfig1[]];
+/**
+ * User defined name of the Qlik environment
+ */
 export type QlikConfig2 = string;
+/**
+ * Path to folder where the Qlik certificates are stored
+ */
 export type QlikConfig3 = string;
 export type QlikConfig4 = string;
 export type QlikConfig5 = string;

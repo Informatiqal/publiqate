@@ -24,7 +24,7 @@ export type GeneralConfig12 = string;
  */
 export type GeneralConfig14 = string;
 /**
- * Locations of files where the secrets are stored. Files are loaded alphabetically and last variable occurrence becomes the active one
+ * Locations of files where the variables are stored. Files are loaded in order of appearance. In case of variable specified in multiple files then the last variable occurrence becomes the active one
  */
 export type GeneralConfig13 = GeneralConfig14[];
 export type GeneralConfig16 = boolean;
