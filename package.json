@@ -23,7 +23,8 @@
     "build": "rollup -c",
     "watch": "rollup -cw",
     "docs": "npx typedoc src/index.doc.ts --name \"Publiqate\" --excludePrivate --hideGenerator --darkHighlightTheme dark-plus",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate-interfaces": "node schemas/schema-to-ts.js"
   },
   "keywords": [
     "qlik",
