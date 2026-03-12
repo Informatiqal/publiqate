@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import fs from "fs";
+import fs, { existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -89,6 +89,9 @@ if (values["uuid"]) {
   console.log(id);
   process.exit(0);
 }
+
+let configsFolder = path.join(process.cwd(), ".\\configs");
+if (values["configs"]) configsFolder = `${values["configs"]}`;
 
 let configAll = {} as Config;
 let notifications = {} as { [k: string]: Notification };
@@ -184,6 +187,8 @@ async function prepareRepoClients() {
         key: key,
       }),
     });
+
+    logger.info(`Repo client created for "${q.host}"`);
   });
 }
 
@@ -290,10 +295,13 @@ async function createQlikNotifications(port: number) {
   );
 }
 
-async function run() {
-  logger.info("Starting core web server ...");
+async function run(configsFolder: string) {
+  if (!existsSync(configsFolder)) {
+    logger.crit(`Error accessing configs folder: ${configsFolder}`);
+    process.exit(1);
+  }
 
-  await db.init();
+  await db.init(configsFolder);
 
   // let configDetails = await prepareAndValidateConfig(logger);
   let { configDetails, isConfigValid } = await loadConfig(logger);
@@ -332,9 +340,13 @@ async function run() {
   await createQlikNotifications(port);
 
   startWebServer(port);
+
+  logger.info("Startup completed");
 }
 
 function startWebServer(port: number) {
+  logger.info("Starting core web server ...");
+
   const app = express();
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
@@ -430,4 +442,4 @@ function startWebServer(port: number) {
   }
 }
 
-run();
+run(configsFolder);

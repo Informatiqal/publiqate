@@ -75,8 +75,12 @@ export async function loadConfig(log: Logger) {
 
     varsFiles.map((v) => {
       if (!fs.existsSync(v)) {
-        logger.error(`Variables files specified but do not exists: ${v}`);
-        return { isConfigValid: false, configDetails: {} as Config };
+        const index = varsFiles.findIndex((e) => e == v);
+        if (index > -1) varsFiles.splice(index, 1);
+        logger.error(
+          `Variables files specified but do not exists: ${v}. Skipping it.`,
+        );
+        // return { isConfigValid: false, configDetails: {} as Config };
       }
     });
 
@@ -115,7 +119,9 @@ export async function loadConfig(log: Logger) {
       return { isConfigValid, configDetails: {} as Config };
     }
 
-    fullRawConfig = replaceVariables(fullRawConfig, varValues);
+    fullRawConfig = replaceVariables(fullRawConfig, varValues)
+      .replace(/\\\\/g, "/")
+      .replace(/\\/g, "/");
     finalConfig = JSON.parse(fullRawConfig);
     let n = {};
     // configs.notifications.config.map((notification) => {

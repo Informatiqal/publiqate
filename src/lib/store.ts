@@ -12,8 +12,9 @@ interface DBData {
 
 let db = {} as Low<DBData>;
 
-export async function init() {
-  const dbPath = path.resolve(`${process.cwd()}`, ".\\configs", "db.json");
+export async function init(configsFolder: string) {
+  const dbPath = path.resolve(configsFolder, "db.json");
+
   const dbInit = await JSONFilePreset<DBData>(dbPath, {});
 
   db = dbInit;
