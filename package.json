@@ -77,7 +77,7 @@
     "enigma.js": "^2.14.0",
     "express": "^5.2.1",
     "js-yaml": "^4.1.1",
-    "json-schema-to-typescript": "^15.0.4",
+    "json-schema-to-typescript": "^16.0.0",
     "lowdb": "^7.0.1",
     "node-fetch": "^3.3.2",
     "rollup": "^4.59.0",
